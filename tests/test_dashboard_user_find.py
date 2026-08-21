@@ -170,7 +170,7 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         # Take Screenshot 2: Visual proof of Edit Modal State
         screenshot_2_path = EVIDENCE_DIR / "02_employee_edit_modal.png"
         try:
-            page.wait_for_timeout(6000)
+            page.wait_for_timeout(10000)
             page.screenshot(path=str(screenshot_2_path), timeout=30000)
         except Exception:
             pass
