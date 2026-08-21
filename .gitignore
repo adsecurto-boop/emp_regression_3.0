@@ -1,0 +1,32 @@
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Playwright Authentication & Test Artifacts
+playwright-profile/auth.json
+playwright-profile/*.json
+!playwright-profile/.gitkeep
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# Environment Variables & Secrets
+.env
+.env.*
+*.pem
+*.key
+
+# IDE & System Files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
