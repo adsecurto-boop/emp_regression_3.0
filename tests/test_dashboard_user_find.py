@@ -56,12 +56,8 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         # 2. Navigate to Employee Details
         page.goto("https://app.dev.empmonitor.com/admin/employee-details", wait_until="domcontentloaded", timeout=60000)
         
-        # 2. Locate DataTables Search Box
-        search_box = page.get_by_role("textbox", name="Search ...").or_(
-            page.get_by_placeholder("Search ...")
-        ).or_(
-            page.locator("input[placeholder*='Search'], input[type='search'], .dataTables_filter input")
-        ).first
+        # 2. Locate DataTables Search Box using exact element ID #search
+        search_box = page.locator("#search, input.search-field, input[placeholder='Search ...']").first
         expect(search_box).to_be_visible(timeout=60000)
         
         # Wait for the page and network to settle fully before searching
@@ -71,17 +67,14 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
             pass
         page.wait_for_timeout(2000)
 
-        # Search for target user
+        # Focus, click, and fill search input with exact query
         search_box.click()
         search_box.clear()
         search_box.fill("auto test")
-        search_box.dispatch_event("input")
-        search_box.dispatch_event("keyup")
-        search_box.dispatch_event("change")
         
-        # Trigger search button click (\uf002 magnifying glass icon button)
+        # Trigger search button click using exact class button.search-btn
+        search_btn = page.locator("button.search-btn, .search-btn").first
         try:
-            search_btn = page.locator("#SearchButton, button.btn-search, .search-btn, button:has-text('\uf002')").first
             if search_btn.count() > 0 and search_btn.is_visible():
                 search_btn.click()
             else:
@@ -89,15 +82,11 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         except Exception:
             search_box.press("Enter")
             
-        page.wait_for_timeout(2000)
+        page.wait_for_timeout(3000)
         
         # 3. Locate and click on the target user in the grid
-        target_user = page.get_by_role("link", name="auto test").or_(
-            page.locator("#td45009 a, a:has-text('auto test'), td:has-text('auto test'), [role='gridcell']:has-text('auto test')")
-        ).first
-        
-        # Explicitly wait up to 30s for target user row to appear in grid
-        expect(target_user).to_be_visible(timeout=30000)
+        target_user = page.locator("a:has-text('auto test'), td:has-text('auto test'), #td45009 a").first
+        expect(target_user).to_be_visible(timeout=40000)
         target_user.click()
         
         # Ensure page navigation to details finishes
