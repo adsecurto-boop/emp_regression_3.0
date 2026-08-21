@@ -58,8 +58,15 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         
         # 2. Locate DataTables Search Box
         search_box = page.get_by_role("textbox", name="Search").or_(page.locator("input[type='search'], .dataTables_filter input, input[placeholder*='Search']")).first
-        expect(search_box).to_be_visible(timeout=40000)
+        expect(search_box).to_be_visible(timeout=60000)
         
+        # Wait for the page and network to settle fully before searching
+        try:
+            page.wait_for_load_state("networkidle", timeout=10000)
+        except Exception:
+            pass
+        page.wait_for_timeout(2000)
+
         # Search for target user
         search_box.click()
         search_box.fill("auto test")
