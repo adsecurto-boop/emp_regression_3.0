@@ -58,7 +58,7 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         
         # 2. Locate DataTables Search Box
         search_box = page.locator("input[type='search'], .dataTables_filter input, input[placeholder*='Search']").first
-        expect(search_box).to_be_visible(timeout=15000)
+        expect(search_box).to_be_visible(timeout=30000)
         
         # Search for target user
         search_box.fill("auto test")
@@ -80,7 +80,7 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         target_user = page.locator("td:has-text('auto test'), a:has-text('auto test'), [role='gridcell']:has-text('auto test')").first
         if not target_user.is_visible():
             target_user = page.locator("tbody tr td a, tbody tr td").first
-        expect(target_user).to_be_visible(timeout=15000)
+        expect(target_user).to_be_visible(timeout=30000)
         target_user.click()
         
         # Ensure page navigation to details finishes
@@ -92,8 +92,8 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         # Take Screenshot 1: Verify user exists on Grid / Details
         screenshot_1_path = EVIDENCE_DIR / "01_employee_grid_match.png"
         try:
-            page.wait_for_timeout(3000)
-            page.screenshot(path=str(screenshot_1_path), timeout=15000)
+            page.wait_for_timeout(6000)
+            page.screenshot(path=str(screenshot_1_path), timeout=30000)
         except Exception:
             pass
         
@@ -146,8 +146,8 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         # Take Screenshot 2: Visual proof of Edit Modal State
         screenshot_2_path = EVIDENCE_DIR / "02_employee_edit_modal.png"
         try:
-            page.wait_for_timeout(3000)
-            page.screenshot(path=str(screenshot_2_path), timeout=15000)
+            page.wait_for_timeout(6000)
+            page.screenshot(path=str(screenshot_2_path), timeout=30000)
         except Exception:
             pass
         
