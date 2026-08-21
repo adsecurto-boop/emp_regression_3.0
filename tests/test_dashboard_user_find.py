@@ -57,18 +57,19 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         page.goto("https://app.dev.empmonitor.com/admin/employee-details", wait_until="domcontentloaded", timeout=60000)
         
         # 2. Locate DataTables Search Box
-        search_box = page.locator("input[type='search'], .dataTables_filter input, input[placeholder*='Search']").first
+        search_box = page.get_by_role("textbox", name="Search").or_(page.locator("input[type='search'], .dataTables_filter input, input[placeholder*='Search']")).first
         expect(search_box).to_be_visible(timeout=40000)
         
         # Search for target user
+        search_box.click()
         search_box.fill("auto test")
         search_box.dispatch_event("input")
         search_box.dispatch_event("change")
         search_box.press("Enter")
         
-        # Trigger search button click if present
+        # Trigger search button click using #SearchButton ID from codegen
         try:
-            search_btn = page.locator("button:has(.fa-search), button.btn-search, .search-btn, button:has-text('Search')").first
+            search_btn = page.locator("#SearchButton, button:has(.fa-search), button.btn-search, .search-btn, button:has-text('Search')").first
             if search_btn.count() > 0 and search_btn.is_visible():
                 search_btn.click()
         except Exception:
@@ -77,9 +78,10 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         page.wait_for_timeout(2000)
         
         # 3. Locate and click on the target user in the grid
-        target_user = page.locator("td:has-text('auto test'), a:has-text('auto test'), [role='gridcell']:has-text('auto test')").first
+        target_user = page.get_by_role("link", name="auto test").or_(page.locator("#td45009, td:has-text('auto test'), a:has-text('auto test'), [role='gridcell']:has-text('auto test')")).first
         if not target_user.is_visible():
             target_user = page.locator("tbody tr td a, tbody tr td").first
+        
         expect(target_user).to_be_visible(timeout=40000)
         target_user.click()
         
@@ -193,7 +195,9 @@ def test_dashboard_user_find(playwright: Playwright):
     """
     creds = fetch_employee_credentials(playwright, headless=True)
     assert creds["email"] is not None and len(creds["email"]) > 0
+    assert "@" in creds["email"]
     assert creds["password"] is not None and len(creds["password"]) > 0
+    assert len(creds["evidence_paths"]) == 2
 
 
 if __name__ == "__main__":
