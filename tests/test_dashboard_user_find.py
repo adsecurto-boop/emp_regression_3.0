@@ -73,11 +73,14 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         search_box.click()
         search_box.clear()
         search_box.fill("auto test")
+        search_box.dispatch_event("input")
+        search_box.dispatch_event("keyup")
+        search_box.dispatch_event("change")
         search_box.press("Enter")
         
         # Trigger search button click (magnifying glass icon button)
         try:
-            search_btn = page.locator("button:has-text('\uf002'), #SearchButton, button:has(.fa-search), button.btn-search, .search-btn").first
+            search_btn = page.locator("#SearchButton, button.btn-search, .search-btn, button:has-text('\uf002')").first
             if search_btn.count() > 0 and search_btn.is_visible():
                 search_btn.click()
         except Exception:
@@ -86,11 +89,21 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         page.wait_for_timeout(2000)
         
         # 3. Locate and click on the target user in the grid
-        target_user = page.get_by_role("link", name="auto test").or_(page.locator("#td45009, td:has-text('auto test'), a:has-text('auto test'), [role='gridcell']:has-text('auto test')")).first
-        if not target_user.is_visible():
-            target_user = page.locator("tbody tr td a, tbody tr td").first
+        target_user = page.get_by_role("link", name="auto test").or_(page.locator("#td45009 a, a:has-text('auto test'), td:has-text('auto test'), [role='gridcell']:has-text('auto test')")).first
+        try:
+            expect(target_user).to_be_visible(timeout=15000)
+        except Exception:
+            # Re-trigger search click if table filter is delayed
+            try:
+                search_btn = page.locator("#SearchButton, button.btn-search, .search-btn").first
+                if search_btn.count() > 0 and search_btn.is_visible():
+                    search_btn.click()
+            except Exception:
+                pass
+            page.wait_for_timeout(3000)
+            target_user = page.get_by_role("link", name="auto test").or_(page.locator("a:has-text('auto test'), td:has-text('auto test')")).first
+            expect(target_user).to_be_visible(timeout=25000)
         
-        expect(target_user).to_be_visible(timeout=40000)
         target_user.click()
         
         # Ensure page navigation to details finishes
