@@ -68,6 +68,7 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         page.wait_for_timeout(2000)
 
         # Search for target user
+        page.get_by_role("textbox", name="Search").click()
         search_box.click()
         search_box.fill("auto test")
         search_box.dispatch_event("input")
