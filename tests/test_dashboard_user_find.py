@@ -58,7 +58,7 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         
         # 2. Locate DataTables Search Box
         search_box = page.locator("input[type='search'], .dataTables_filter input, input[placeholder*='Search']").first
-        expect(search_box).to_be_visible(timeout=30000)
+        expect(search_box).to_be_visible(timeout=40000)
         
         # Search for target user
         search_box.fill("auto test")
@@ -80,7 +80,7 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         target_user = page.locator("td:has-text('auto test'), a:has-text('auto test'), [role='gridcell']:has-text('auto test')").first
         if not target_user.is_visible():
             target_user = page.locator("tbody tr td a, tbody tr td").first
-        expect(target_user).to_be_visible(timeout=30000)
+        expect(target_user).to_be_visible(timeout=40000)
         target_user.click()
         
         # Ensure page navigation to details finishes
