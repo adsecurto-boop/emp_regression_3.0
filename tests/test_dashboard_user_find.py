@@ -92,7 +92,8 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         # Take Screenshot 1: Verify user exists on Grid / Details
         screenshot_1_path = EVIDENCE_DIR / "01_employee_grid_match.png"
         try:
-            page.screenshot(path=str(screenshot_1_path), timeout=5000)
+            page.wait_for_timeout(3000)
+            page.screenshot(path=str(screenshot_1_path), timeout=15000)
         except Exception:
             pass
         
@@ -145,7 +146,8 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         # Take Screenshot 2: Visual proof of Edit Modal State
         screenshot_2_path = EVIDENCE_DIR / "02_employee_edit_modal.png"
         try:
-            page.screenshot(path=str(screenshot_2_path), timeout=5000)
+            page.wait_for_timeout(3000)
+            page.screenshot(path=str(screenshot_2_path), timeout=15000)
         except Exception:
             pass
         

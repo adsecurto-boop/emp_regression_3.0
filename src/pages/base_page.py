@@ -62,6 +62,10 @@ class BasePage:
         self.page.wait_for_selector(selector, state="visible", timeout=timeout_ms)
         return self.page.inner_text(selector, timeout=timeout_ms).strip()
 
-    def take_screenshot(self, path: str) -> None:
-        """Save a screenshot of the current page state."""
-        self.page.screenshot(path=path, full_page=True)
+    def take_screenshot(self, path: str, delay_ms: int = 3000, timeout: int = 15000) -> None:
+        """Save a screenshot of the current page state after settling delay."""
+        try:
+            self.page.wait_for_timeout(delay_ms)
+            self.page.screenshot(path=path, full_page=True, timeout=timeout)
+        except Exception:
+            pass

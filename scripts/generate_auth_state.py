@@ -48,7 +48,8 @@ def generate_auth_state() -> None:
         evidence_dir = Path("tests/evidence")
         evidence_dir.mkdir(parents=True, exist_ok=True)
         screenshot_path = evidence_dir / "00_authenticated_dashboard.png"
-        page.screenshot(path=str(screenshot_path))
+        page.wait_for_timeout(3000)
+        page.screenshot(path=str(screenshot_path), timeout=15000)
         logging.info(f"Dashboard screenshot evidence saved at: {screenshot_path}")
         
         # Save cookies and local storage state into our profile directory
