@@ -57,10 +57,8 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         page.goto("https://app.dev.empmonitor.com/admin/employee-details", wait_until="domcontentloaded", timeout=60000)
         
         # 2. Locate DataTables Search Box
-        search_box = page.get_by_placeholder("Search").or_(
-            page.get_by_role("textbox", name="Search")
-        ).or_(
-            page.locator("input[type='search'], .dataTables_filter input, input[placeholder*='Search'], input[aria-controls]")
+        search_box = page.get_by_placeholder("Search ...").or_(
+            page.locator("input[placeholder*='Search'], input[type='search'], .dataTables_filter input")
         ).first
         expect(search_box).to_be_visible(timeout=60000)
         
@@ -77,9 +75,9 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         search_box.fill("auto test")
         search_box.press("Enter")
         
-        # Trigger search button click using #SearchButton ID from codegen
+        # Trigger search button click (magnifying glass icon button)
         try:
-            search_btn = page.locator("#SearchButton, button:has(.fa-search), button.btn-search, .search-btn, button:has-text('Search')").first
+            search_btn = page.locator("button:has-text('\uf002'), #SearchButton, button:has(.fa-search), button.btn-search, .search-btn").first
             if search_btn.count() > 0 and search_btn.is_visible():
                 search_btn.click()
         except Exception:
