@@ -57,7 +57,9 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         page.goto("https://app.dev.empmonitor.com/admin/employee-details", wait_until="domcontentloaded", timeout=60000)
         
         # 2. Locate DataTables Search Box
-        search_box = page.get_by_placeholder("Search ...").or_(
+        search_box = page.get_by_role("textbox", name="Search ...").or_(
+            page.get_by_placeholder("Search ...")
+        ).or_(
             page.locator("input[placeholder*='Search'], input[type='search'], .dataTables_filter input")
         ).first
         expect(search_box).to_be_visible(timeout=60000)
@@ -73,20 +75,19 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         search_box.click()
         search_box.clear()
         search_box.fill("auto test")
-        search_box.dispatch_event("input")
-        search_box.dispatch_event("keyup")
-        search_box.dispatch_event("change")
-        search_box.press("Enter")
         
-        # Trigger search button click (magnifying glass icon button)
+        # Trigger search button click (\uf002 magnifying glass icon button)
         try:
-            search_btn = page.locator("#SearchButton, button.btn-search, .search-btn, button:has-text('\uf002')").first
+            search_btn = page.get_by_role("button", name="\uf002").or_(
+                page.locator("#SearchButton, button.btn-search, .search-btn, button:has(.fa-search)")
+            ).first
             if search_btn.count() > 0 and search_btn.is_visible():
                 search_btn.click()
         except Exception:
             pass
             
-        page.wait_for_timeout(2000)
+        search_box.press("Enter")
+        page.wait_for_timeout(3000)
         
         # 3. Locate and click on the target user in the grid
         target_user = page.get_by_role("link", name="auto test").or_(page.locator("#td45009 a, a:has-text('auto test'), td:has-text('auto test'), [role='gridcell']:has-text('auto test')")).first
