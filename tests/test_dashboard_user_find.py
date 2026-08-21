@@ -57,7 +57,11 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         page.goto("https://app.dev.empmonitor.com/admin/employee-details", wait_until="domcontentloaded", timeout=60000)
         
         # 2. Locate DataTables Search Box
-        search_box = page.get_by_role("textbox", name="Search").or_(page.locator("input[type='search'], .dataTables_filter input, input[placeholder*='Search']")).first
+        search_box = page.get_by_placeholder("Search").or_(
+            page.get_by_role("textbox", name="Search")
+        ).or_(
+            page.locator("input[type='search'], .dataTables_filter input, input[placeholder*='Search'], input[aria-controls]")
+        ).first
         expect(search_box).to_be_visible(timeout=60000)
         
         # Wait for the page and network to settle fully before searching
@@ -68,11 +72,9 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
         page.wait_for_timeout(2000)
 
         # Search for target user
-        page.get_by_role("textbox", name="Search").click()
         search_box.click()
+        search_box.clear()
         search_box.fill("auto test")
-        search_box.dispatch_event("input")
-        search_box.dispatch_event("change")
         search_box.press("Enter")
         
         # Trigger search button click using #SearchButton ID from codegen
