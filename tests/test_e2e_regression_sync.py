@@ -136,12 +136,26 @@ def test_e2e_regression_sync_verification(authenticated_page: Page):
             screenshot_cards[0].click()
             page.wait_for_timeout(2000)
             
-            # Dismiss lightbox modal
-            close_btn = page.get_by_role("link", name="Close").or_(page.locator(".close, [data-dismiss='modal'], button:has-text('Close')")).first
-            if close_btn.count() > 0 and close_btn.is_visible():
-                close_btn.click()
+            # Dismiss fancybox / lightbox modal cleanly
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(1000)
+            try:
+                close_btn = page.locator(".fancybox-close, [title='Close'], .fancybox-overlay, a:has-text('Close'), .close").first
+                if close_btn.count() > 0 and close_btn.is_visible():
+                    close_btn.click(force=True)
+            except Exception:
+                pass
+            page.wait_for_timeout(1000)
         except Exception as e:
             logger.warning(f"Lightbox click interaction warning: {e}")
+
+    # Ensure fancybox overlay is closed before proceeding
+    try:
+        if page.locator(".fancybox-overlay:visible, #fancybox-buttons:visible").count() > 0:
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(1000)
+    except Exception:
+        pass
 
     screenshot_evidence = EVIDENCE_DIR / "EV-013_screenshots.png"
     page.screenshot(path=str(screenshot_evidence), full_page=True, timeout=30000)
