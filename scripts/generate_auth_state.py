@@ -30,10 +30,17 @@ def generate_auth_state() -> None:
         logging.info("Navigating to EmpMonitor login interface...")
         page.goto("https://app.dev.empmonitor.com/amember/member", wait_until="domcontentloaded", timeout=60000)
         
-        # We fill the credentials using the exact locators recorded in codegen
-        logging.info("Entering developer credentials...")
-        page.get_by_role("textbox", name="Username/Email").fill("qt_dev")
-        page.get_by_role("textbox", name="Password").fill("qt_developers")
+        # We fill the credentials dynamically using auth_helper
+        logging.info("Retrieving dashboard login credentials...")
+        from src.utils.auth_helper import get_dashboard_credentials
+        username, password = get_dashboard_credentials(prompt_if_missing=True)
+        if not username or not password:
+            logging.error("Dashboard credentials not provided! Cannot generate auth state.")
+            return
+
+        logging.info("Entering credentials into login form...")
+        page.get_by_role("textbox", name="Username/Email").fill(username)
+        page.get_by_role("textbox", name="Password").fill(password)
         
         logging.info("Submitting login form...")
         page.get_by_role("button", name="Login").click()

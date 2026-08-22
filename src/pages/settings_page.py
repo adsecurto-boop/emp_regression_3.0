@@ -101,11 +101,14 @@ class SettingsPage(BasePage):
         try:
             if self.page.get_by_role("textbox", name="Username/Email").count() > 0 and self.page.get_by_role("textbox", name="Username/Email").is_visible():
                 logger.info("Session expired. Auto-healing login state...")
-                self.page.get_by_role("textbox", name="Username/Email").fill("qt_dev")
-                self.page.get_by_role("textbox", name="Password").fill("qt_developers")
-                self.page.get_by_role("button", name="Login").click()
-                self.page.wait_for_load_state("networkidle")
-                self.page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+                from src.utils.auth_helper import get_dashboard_credentials
+                dash_user, dash_pass = get_dashboard_credentials(prompt_if_missing=True)
+                if dash_user and dash_pass:
+                    self.page.get_by_role("textbox", name="Username/Email").fill(dash_user)
+                    self.page.get_by_role("textbox", name="Password").fill(dash_pass)
+                    self.page.get_by_role("button", name="Login").click()
+                    self.page.wait_for_load_state("networkidle")
+                    self.page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
         except Exception:
             pass
 

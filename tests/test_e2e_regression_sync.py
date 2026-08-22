@@ -31,11 +31,14 @@ def auto_heal_login_if_needed(page: Page, auth_state_path: str = "playwright-pro
         user_field = page.get_by_role("textbox", name="Username/Email")
         if user_field.count() > 0 and user_field.is_visible():
             logger.info("Session expired. Auto-healing login state...")
-            user_field.fill("qt_dev")
-            page.get_by_role("textbox", name="Password").fill("qt_developers")
-            page.get_by_role("button", name="Login").click()
-            page.wait_for_load_state("networkidle")
-            page.context.storage_state(path=auth_state_path)
+            from src.utils.auth_helper import get_dashboard_credentials
+            dash_user, dash_pass = get_dashboard_credentials(prompt_if_missing=True)
+            if dash_user and dash_pass:
+                user_field.fill(dash_user)
+                page.get_by_role("textbox", name="Password").fill(dash_pass)
+                page.get_by_role("button", name="Login").click()
+                page.wait_for_load_state("networkidle")
+                page.context.storage_state(path=auth_state_path)
     except Exception:
         pass
 

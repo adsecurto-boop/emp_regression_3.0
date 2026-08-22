@@ -16,5 +16,5 @@ HEADLESS = os.getenv("HEADLESS", "false").lower() == "true"
 VIEWPORT_SIZE = {"width": 1280, "height": 720}
 
 # Credentials (for generate_auth_state script fallback)
-DEFAULT_USERNAME = os.getenv("EMP_USERNAME", "qt_dev")
-DEFAULT_PASSWORD = os.getenv("EMP_PASSWORD", "qt_developers")
+DEFAULT_USERNAME = os.getenv("EMP_USERNAME", os.getenv("EMP_DASHBOARD_USER", ""))
+DEFAULT_PASSWORD = os.getenv("EMP_PASSWORD", os.getenv("EMP_DASHBOARD_PASS", ""))
