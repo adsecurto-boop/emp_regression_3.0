@@ -46,6 +46,25 @@ def authenticated_context(playwright: Playwright):
     
     # Load the cached state directly into the new context
     context = browser.new_context(storage_state=AUTH_PATH, ignore_https_errors=True)
+
+    # Validate & auto-heal session if expired
+    page = context.new_page()
+    try:
+        page.goto("https://app.dev.empmonitor.com/amember/member", wait_until="domcontentloaded", timeout=30000)
+        user_field = page.get_by_role("textbox", name="Username/Email")
+        if user_field.count() > 0 and user_field.is_visible():
+            from src.utils.auth_helper import get_dashboard_credentials
+            dash_user, dash_pass = get_dashboard_credentials(prompt_if_missing=False)
+            if dash_user and dash_pass:
+                user_field.fill(dash_user)
+                page.get_by_role("textbox", name="Password").fill(dash_pass)
+                page.get_by_role("button", name="Login").click()
+                page.wait_for_load_state("networkidle")
+                context.storage_state(path=AUTH_PATH)
+    except Exception:
+        pass
+    finally:
+        page.close()
     
     yield context
     

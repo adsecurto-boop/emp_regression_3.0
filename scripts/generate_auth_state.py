@@ -4,10 +4,15 @@ Purpose: Logs in using credentials and caches session state to bypass login form
 Evidence Mapping: Part of L4 Web Dashboard Setup (EV-013)
 """
 
-import os
+import sys
 import logging
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+
+# Ensure project root is in sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 # Setup logging for clean terminal output
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
