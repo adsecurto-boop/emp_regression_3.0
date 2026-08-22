@@ -276,22 +276,17 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                         edit_link.click()
                         
                         email_input = page.locator("input[placeholder*='Email'], input[name*='email'], #email, #edit_email, #emp_emailAddress").first
-                        expect(email_input).to_be_visible(timeout=10000)
-                        
                         try:
-                            page.wait_for_function(
-                                "el => el && el.value && el.value.trim().length > 0",
-                                arg=email_input.element_handle(),
-                                timeout=5000
-                            )
+                            expect(email_input).to_be_visible(timeout=10000)
+                            page.wait_for_timeout(2000)
+                            extracted = email_input.input_value()
+                            if extracted and "@" in extracted:
+                                results["dashboard_email"] = extracted.strip()
                         except Exception:
                             pass
-                        
-                        results["dashboard_email"] = email_input.input_value()
-                        logger.info(f"[L4 EXTRACTED] Dashboard Registered Email: {results['dashboard_email']}")
 
                         modal_screenshot = EVIDENCE_DIR / "02_employee_edit_modal.png"
-                        page.wait_for_timeout(3000)
+                        page.wait_for_timeout(2000)
                         page.screenshot(path=str(modal_screenshot), timeout=30000)
                         results["evidence_files"].append("02_employee_edit_modal.png")
 
@@ -302,8 +297,19 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                         else:
                             page.keyboard.press("Escape")
                 except Exception as e:
-                    logger.warning(f"Could not extract modal email: {e}")
+                    logger.warning(f"Edit Modal interaction warning: {e}")
 
+                # Fallback email extraction from page content if modal value was empty
+                if not results["dashboard_email"]:
+                    try:
+                        all_emails = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', page.content())
+                        valid_emails = [e for e in all_emails if not any(sys_domain in e for sys_domain in ["empmonitor.com", "w3.org", "schema.org", "example.com"])]
+                        if valid_emails:
+                            results["dashboard_email"] = valid_emails[0].strip()
+                    except Exception:
+                        pass
+
+                logger.info(f"[L4 EXTRACTED] Dashboard Registered Email: {results['dashboard_email']}")
                 results["telemetry_summary"] = "User active on Web Dashboard (Email & Grid verified)."
 
             else:
