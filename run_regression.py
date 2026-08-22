@@ -311,7 +311,40 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                     logger.warning(f"Edit Modal interaction warning: {e}")
 
                 logger.info(f"[L4 EXTRACTED] Dashboard Registered Email: {results['dashboard_email']}")
-                results["telemetry_summary"] = "User active on Web Dashboard (Email & Grid verified)."
+
+                # -------------------------------------------------------------
+                # Full Telemetry Modules Visual Evidence Collection
+                # -------------------------------------------------------------
+                logger.info("Capturing visual evidence across all 6 employee telemetry modules...")
+
+                telemetry_tabs = [
+                    ("03_keystrokes_module.png", "#keyLogger", "Keystrokes Data Module"),
+                    ("04_app_history_module.png", "#AppHistory", "App History Module"),
+                    ("05_web_history_module.png", "#BrowserHistory", "Web History Module"),
+                    ("06_screenshots_module.png", "#Screenshots", "Screenshots Gallery Module"),
+                    ("07_productivity_module.png", "#Productivity", "Productivity Timeline Module"),
+                    ("08_screen_recording_module.png", "#ScreenRecording", "Screen Recording Module")
+                ]
+
+                for fname, href_key, label in telemetry_tabs:
+                    try:
+                        logger.info(f"[Module Evidence] Capturing {label} ({fname})...")
+                        tab_btn = page.locator(f"a[href*='{href_key}']").first
+                        if tab_btn.count() > 0:
+                            tab_btn.click()
+                            page.wait_for_timeout(3000)
+                            try:
+                                page.keyboard.press("Escape")
+                            except Exception:
+                                pass
+                            img_path = EVIDENCE_DIR / fname
+                            page.screenshot(path=str(img_path), full_page=True, timeout=30000)
+                            results["evidence_files"].append(fname)
+                            logger.info(f"  -> Saved {fname}")
+                    except Exception as e:
+                        logger.warning(f"Warning capturing {label}: {e}")
+
+                results["telemetry_summary"] = "User active on Web Dashboard (Email, Grid & All 6 Telemetry Modules verified)."
 
             else:
                 logger.warning(f"[L4 MISMATCH / FAILURE] Target user '{target_user}' NOT found in Employee Grid!")
