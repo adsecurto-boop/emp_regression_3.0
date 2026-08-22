@@ -254,12 +254,23 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                 
             page.wait_for_timeout(3000)
 
-            # Check if target user link exists in the grid
+            # Check if target user link exists in the grid and extract email directly from grid row
+            grid_email = None
+            for row in page.locator("table tbody tr").all():
+                row_txt = row.inner_text()
+                if target_user.lower() in row_txt.lower():
+                    row_emails = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', row_txt)
+                    if row_emails:
+                        grid_email = row_emails[0].strip()
+                        break
+
             user_link = page.locator(f"a:has-text('{target_user}'), td:has-text('{target_user}')").first
             
             if user_link.count() > 0 and user_link.is_visible():
                 logger.info(f"[L4 MATCH] Target user '{target_user}' found in Employee Grid!")
                 results["user_found"] = True
+                if grid_email:
+                    results["dashboard_email"] = grid_email
 
                 grid_screenshot = EVIDENCE_DIR / "01_employee_grid_match.png"
                 page.screenshot(path=str(grid_screenshot), timeout=30000)
@@ -269,7 +280,7 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                 user_link.click()
                 page.wait_for_timeout(2000)
 
-                # Open Edit Modal to extract registered email
+                # Open Edit Modal to extract/verify registered email
                 try:
                     edit_link = page.locator("a:has-text('Edit'), [title='Edit'], .edit_employee, a[href*='edit']").first
                     if edit_link.count() > 0 and edit_link.is_visible():
@@ -298,16 +309,6 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                             page.keyboard.press("Escape")
                 except Exception as e:
                     logger.warning(f"Edit Modal interaction warning: {e}")
-
-                # Fallback email extraction from page content if modal value was empty
-                if not results["dashboard_email"]:
-                    try:
-                        all_emails = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', page.content())
-                        valid_emails = [e for e in all_emails if not any(sys_domain in e for sys_domain in ["empmonitor.com", "w3.org", "schema.org", "example.com"])]
-                        if valid_emails:
-                            results["dashboard_email"] = valid_emails[0].strip()
-                    except Exception:
-                        pass
 
                 logger.info(f"[L4 EXTRACTED] Dashboard Registered Email: {results['dashboard_email']}")
                 results["telemetry_summary"] = "User active on Web Dashboard (Email & Grid verified)."
