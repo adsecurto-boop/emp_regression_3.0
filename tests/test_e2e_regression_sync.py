@@ -68,7 +68,7 @@ def test_e2e_regression_sync_verification(authenticated_page: Page):
     page.wait_for_timeout(3000)
 
     ts_evidence = EVIDENCE_DIR / "EV-018_timesheets.png"
-    page.screenshot(path=str(ts_evidence), full_page=True, timeout=30000)
+    page.screenshot(path=str(ts_evidence), timeout=30000)
     logger.info(f"Saved Timesheets Evidence: {ts_evidence}")
 
     ts_container = page.locator("#Timesheets").first
