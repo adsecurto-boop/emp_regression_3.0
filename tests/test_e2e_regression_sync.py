@@ -60,7 +60,19 @@ def test_e2e_regression_sync_verification(authenticated_page: Page):
     logger.info(f"Navigating to Employee Details: {target_user_url}")
     page.goto(target_user_url, wait_until="domcontentloaded", timeout=60000)
     auto_heal_login_if_needed(page)
-    page.wait_for_timeout(2000)
+    # -------------------------------------------------------------------------
+    # MODULE 0: Timesheets Data Module (EV-018)
+    # -------------------------------------------------------------------------
+    logger.info("\n--- [Module 0] Validating Timesheets Data (EV-018) ---")
+    page.get_by_role("link", name=" Timesheets").or_(page.locator("[href*='#Timesheets']")).first.click()
+    page.wait_for_timeout(3000)
+
+    ts_evidence = EVIDENCE_DIR / "EV-018_timesheets.png"
+    page.screenshot(path=str(ts_evidence), full_page=True, timeout=30000)
+    logger.info(f"Saved Timesheets Evidence: {ts_evidence}")
+
+    ts_container = page.locator("#Timesheets").first
+    expect(ts_container).to_be_visible(timeout=15000)
 
     # -------------------------------------------------------------------------
     # MODULE 1: Keystroke Data Module (EV-016)

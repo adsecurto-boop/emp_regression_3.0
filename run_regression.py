@@ -322,12 +322,13 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                 logger.info("Capturing visual evidence across all 6 employee telemetry modules...")
 
                 telemetry_tabs = [
-                    ("03_keystrokes_module.png", "#keyLogger", "Keystrokes Data Module"),
-                    ("04_app_history_module.png", "#AppHistory", "App History Module"),
-                    ("05_web_history_module.png", "#BrowserHistory", "Web History Module"),
-                    ("06_screenshots_module.png", "#Screenshots", "Screenshots Gallery Module"),
-                    ("07_productivity_module.png", "#Productivity", "Productivity Timeline Module"),
-                    ("08_screen_recording_module.png", "#ScreenRecording", "Screen Recording Module")
+                    ("03_timesheets_module.png", "#Timesheets", "Timesheets Data Module"),
+                    ("04_keystrokes_module.png", "#keyLogger", "Keystrokes Data Module"),
+                    ("05_app_history_module.png", "#AppHistory", "App History Module"),
+                    ("06_web_history_module.png", "#BrowserHistory", "Web History Module"),
+                    ("07_screenshots_module.png", "#Screenshots", "Screenshots Gallery Module"),
+                    ("08_productivity_module.png", "#Productivity", "Productivity Timeline Module"),
+                    ("09_screen_recording_module.png", "#ScreenRecording", "Screen Recording Module")
                 ]
 
                 for fname, href_key, label in telemetry_tabs:

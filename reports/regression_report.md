@@ -2,8 +2,8 @@
 
 ## 1. Execution Metadata Summary
 
-- **Date & Time**: `2026-08-22 11:35:47`
-- **Agent Version Evaluated**: `3.5.0`
+- **Date & Time**: `2026-08-22 11:45:29`
+- **Agent Version Evaluated**: `3.2.0`
 - **Local Active Host Email (L1)**: `autotest@gmail.com`
 - **Searched Dashboard User (L4)**: `auto test`
 - **Dashboard Registered Email (L4)**: `autotest@gmail.com`
@@ -24,7 +24,7 @@
 - **Binary `emp_psa_service.exe`**: FOUND
 - **Process `empmonitor.exe`**: RUNNING (running)
 - **Process `updatemgr_emp.exe`**: RUNNING (running)
-- **Process `esr.exe`**: RUNNING (running)
+- **Process `esr.exe`**: INACTIVE
 - **Process `emp_psa_service.exe`**: RUNNING (running)
 
 ### Sanitized `config.js` Contents (Masked)
@@ -42,11 +42,11 @@
 
 ### Sanitized `empm.ini` Attributes (Masked)
 ```ini
-last_sync_time = @DateTime(\0\0\0\x10\0\0\0\0\0\0%\x8e[\x2z\xd8\xf1\0)
+last_sync_time = @DateTime(\0\0\0\x10\0\0\0\0\0\0%\x8e[\x2\x83\x13\xa8\0)
 is_system_locked = false
 currentdate = @Variant(\0\0\0\xe\0%\x8e[)
 datasendingperiodsec = 180
-lastsettingsaccessdatetime = @DateTime(\0\0\0\x10\0\0\0\0\0\0%\x8e[\x1N$\xa2\x1)
+lastsettingsaccessdatetime = @DateTime(\0\0\0\x10\0\0\0\0\0\0%\x8e[\x1V\xe7\xa5\x1)
 todayremainingbreakinseconds = 1800
 from_remote\aduserinfosendpersec = 21600
 from_remote\screenshotperiodsec = 60
