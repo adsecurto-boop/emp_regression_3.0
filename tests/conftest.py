@@ -50,7 +50,8 @@ def authenticated_context(playwright: Playwright):
     # Validate & auto-heal session if expired
     page = context.new_page()
     try:
-        page.goto("https://app.dev.empmonitor.com/amember/member", wait_until="domcontentloaded", timeout=30000)
+        from config.settings import LOGIN_URL
+        page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=30000)
         user_field = page.get_by_role("textbox", name="Username/Email")
         if user_field.count() > 0 and user_field.is_visible():
             from src.utils.auth_helper import get_dashboard_credentials

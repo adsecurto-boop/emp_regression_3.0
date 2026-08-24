@@ -7,7 +7,12 @@ PLAYWRIGHT_PROFILE_DIR = BASE_DIR / "playwright-profile"
 AUTH_STATE_PATH = PLAYWRIGHT_PROFILE_DIR / "auth.json"
 
 # Environment & URL Settings
-BASE_URL = os.getenv("EMP_BASE_URL", "https://app.dev.empmonitor.com")
+EMP_ENV = os.getenv("EMP_ENV", "dev").lower()
+DEV_BASE_URL = "https://app.dev.empmonitor.com"
+LIVE_BASE_URL = "https://app.empmonitor.com"
+
+DEFAULT_BASE = LIVE_BASE_URL if EMP_ENV in ["live", "prod", "production"] else DEV_BASE_URL
+BASE_URL = os.getenv("EMP_BASE_URL", DEFAULT_BASE)
 LOGIN_URL = os.getenv("EMP_LOGIN_URL", f"{BASE_URL}/amember/member")
 
 # Browser & Execution Settings

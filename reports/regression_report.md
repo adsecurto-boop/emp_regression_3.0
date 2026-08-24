@@ -2,12 +2,16 @@
 
 ## 1. Execution Metadata Summary
 
-- **Date & Time**: `2026-08-22 11:45:29`
+- **Date & Time**: `2026-08-22 11:59:38`
 - **Agent Version Evaluated**: `3.2.0`
 - **Local Active Host Email (L1)**: `autotest@gmail.com`
-- **Searched Dashboard User (L4)**: `auto test`
-- **Dashboard Registered Email (L4)**: `autotest@gmail.com`
-- **Final System Verdict**: **`HEALTHY`**
+- **Searched Dashboard User (L4)**: `Akhil G`
+- **Dashboard Registered Email (L4)**: `akhil@gmail.com`
+- **Final System Verdict**: **`FAILED`**
+
+### ⚠️ Discrepancy Warnings
+
+- 🔴 **[DISCREPANCY]**: Email Discrepancy Mismatch! Local Host Email ('autotest@gmail.com') != Dashboard Email ('akhil@gmail.com')
 
 ---
 
@@ -24,7 +28,7 @@
 - **Binary `emp_psa_service.exe`**: FOUND
 - **Process `empmonitor.exe`**: RUNNING (running)
 - **Process `updatemgr_emp.exe`**: RUNNING (running)
-- **Process `esr.exe`**: INACTIVE
+- **Process `esr.exe`**: RUNNING (running)
 - **Process `emp_psa_service.exe`**: RUNNING (running)
 
 ### Sanitized `config.js` Contents (Masked)
@@ -42,11 +46,11 @@
 
 ### Sanitized `empm.ini` Attributes (Masked)
 ```ini
-last_sync_time = @DateTime(\0\0\0\x10\0\0\0\0\0\0%\x8e[\x2\x83\x13\xa8\0)
+last_sync_time = @DateTime(\0\0\0\x10\0\0\0\0\0\0%\x8e[\x2\x90\xcfR\0)
 is_system_locked = false
 currentdate = @Variant(\0\0\0\xe\0%\x8e[)
 datasendingperiodsec = 180
-lastsettingsaccessdatetime = @DateTime(\0\0\0\x10\0\0\0\0\0\0%\x8e[\x1V\xe7\xa5\x1)
+lastsettingsaccessdatetime = @DateTime(\0\0\0\x10\0\0\0\0\0\0%\x8e[\x1\x63\xe1\x87\x1)
 todayremainingbreakinseconds = 1800
 from_remote\aduserinfosendpersec = 21600
 from_remote\screenshotperiodsec = 60
@@ -296,26 +300,30 @@ Link: [01_employee_grid_match.png](evidence/01_employee_grid_match.png)
 ![02_employee_edit_modal.png](evidence/02_employee_edit_modal.png)
 Link: [02_employee_edit_modal.png](evidence/02_employee_edit_modal.png)
 
-### Evidence: `03_keystrokes_module.png`
-![03_keystrokes_module.png](evidence/03_keystrokes_module.png)
-Link: [03_keystrokes_module.png](evidence/03_keystrokes_module.png)
+### Evidence: `03_timesheets_module.png`
+![03_timesheets_module.png](evidence/03_timesheets_module.png)
+Link: [03_timesheets_module.png](evidence/03_timesheets_module.png)
 
-### Evidence: `04_app_history_module.png`
-![04_app_history_module.png](evidence/04_app_history_module.png)
-Link: [04_app_history_module.png](evidence/04_app_history_module.png)
+### Evidence: `04_keystrokes_module.png`
+![04_keystrokes_module.png](evidence/04_keystrokes_module.png)
+Link: [04_keystrokes_module.png](evidence/04_keystrokes_module.png)
 
-### Evidence: `05_web_history_module.png`
-![05_web_history_module.png](evidence/05_web_history_module.png)
-Link: [05_web_history_module.png](evidence/05_web_history_module.png)
+### Evidence: `05_app_history_module.png`
+![05_app_history_module.png](evidence/05_app_history_module.png)
+Link: [05_app_history_module.png](evidence/05_app_history_module.png)
 
-### Evidence: `06_screenshots_module.png`
-![06_screenshots_module.png](evidence/06_screenshots_module.png)
-Link: [06_screenshots_module.png](evidence/06_screenshots_module.png)
+### Evidence: `06_web_history_module.png`
+![06_web_history_module.png](evidence/06_web_history_module.png)
+Link: [06_web_history_module.png](evidence/06_web_history_module.png)
 
-### Evidence: `07_productivity_module.png`
-![07_productivity_module.png](evidence/07_productivity_module.png)
-Link: [07_productivity_module.png](evidence/07_productivity_module.png)
+### Evidence: `07_screenshots_module.png`
+![07_screenshots_module.png](evidence/07_screenshots_module.png)
+Link: [07_screenshots_module.png](evidence/07_screenshots_module.png)
 
-### Evidence: `08_screen_recording_module.png`
-![08_screen_recording_module.png](evidence/08_screen_recording_module.png)
-Link: [08_screen_recording_module.png](evidence/08_screen_recording_module.png)
+### Evidence: `08_productivity_module.png`
+![08_productivity_module.png](evidence/08_productivity_module.png)
+Link: [08_productivity_module.png](evidence/08_productivity_module.png)
+
+### Evidence: `09_screen_recording_module.png`
+![09_screen_recording_module.png](evidence/09_screen_recording_module.png)
+Link: [09_screen_recording_module.png](evidence/09_screen_recording_module.png)

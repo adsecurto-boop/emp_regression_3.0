@@ -17,7 +17,8 @@ def test_login_bypass_and_dashboard_render(authenticated_context):
     page = authenticated_context.new_page()
     
     # Go directly to the member dashboard URL
-    page.goto("https://app.dev.empmonitor.com/amember/member", wait_until="domcontentloaded", timeout=60000)
+    from config.settings import LOGIN_URL
+    page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
     
     # ASSERTION: The dashboard heading should be visible immediately.
     # If the session was invalid or expired, the application would have

@@ -93,7 +93,8 @@ class SettingsPage(BasePage):
         """
         Navigates directly to the user's tracking settings page (or via Employee Details search).
         """
-        target_url = f"https://app.dev.empmonitor.com/admin/track-user-setting?id={user_id}"
+        from config.settings import BASE_URL
+        target_url = f"{BASE_URL}/admin/track-user-setting?id={user_id}"
         logger.info(f"Navigating to User Settings page: {target_url}")
         self.page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
         

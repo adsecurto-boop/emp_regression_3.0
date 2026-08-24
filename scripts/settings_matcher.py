@@ -192,8 +192,9 @@ class WebDashboardSettingsExtractor:
             page = context.new_page()
 
             try:
+                from config.settings import BASE_URL, LOGIN_URL
                 # 1. Navigate to member URL & auto-heal session if expired
-                page.goto("https://app.dev.empmonitor.com/amember/member", wait_until="domcontentloaded", timeout=60000)
+                page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
                 try:
                     user_field = page.get_by_role("textbox", name="Username/Email")
                     if user_field.count() > 0 and user_field.is_visible():
@@ -209,7 +210,7 @@ class WebDashboardSettingsExtractor:
                     pass
 
                 # 2. Navigate to track-user-setting for target user (id=45009 / auto test)
-                page.goto("https://app.dev.empmonitor.com/admin/track-user-setting?id=45009", wait_until="domcontentloaded", timeout=60000)
+                page.goto(f"{BASE_URL}/admin/track-user-setting?id=45009", wait_until="domcontentloaded", timeout=60000)
                 page.wait_for_timeout(3000)
 
                 # Extract Email (hardcoded or extracted from detail page)

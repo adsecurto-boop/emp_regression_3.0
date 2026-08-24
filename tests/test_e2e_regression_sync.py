@@ -56,7 +56,8 @@ def test_e2e_regression_sync_verification(authenticated_page: Page):
     7. Screen Recording Video Segments & Playback Overlay (EV-014)
     """
     page = authenticated_page
-    target_user_url = "https://app.dev.empmonitor.com/admin/get-employee-details?id=45009"
+    from config.settings import BASE_URL
+    target_user_url = f"{BASE_URL}/admin/get-employee-details?id=45009"
     
     logger.info("=== STARTING DASHBOARD TELEMETRY VERIFICATION ===")
     logger.info(f"Navigating to Employee Details: {target_user_url}")

@@ -191,13 +191,21 @@ def inspect_local_system(version_input: str) -> Tuple[Dict[str, Any], List[str]]
 # ==============================================================================
 # STEP 3: Playwright Web Dashboard Automation (L4 Verification)
 # ==============================================================================
-def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-profile/auth.json") -> Dict[str, Any]:
+def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-profile/auth.json", base_url: Optional[str] = None) -> Dict[str, Any]:
     """
     Executes Playwright Web Dashboard audit.
     Handles both Positive Path (user exists) and Negative/Failure Path (user missing/mismatch/empty).
     Captures visual evidence to reports/evidence/.
     """
+    if not base_url:
+        from config.settings import BASE_URL
+        base_url = BASE_URL
+
+    member_url = f"{base_url}/amember/member"
+    employee_details_url = f"{base_url}/admin/employee-details"
+
     logger.info("=== STEP 2: Playwright Web Dashboard Audit (L4) ===")
+    logger.info(f"Target Environment URL: {member_url}")
     logger.info(f"Searching Web Dashboard for Target User: '{target_user}'")
 
     results = {
@@ -219,7 +227,7 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
 
         try:
             # 1. Navigate to member URL to validate/refresh session state
-            page.goto("https://app.dev.empmonitor.com/amember/member", wait_until="domcontentloaded", timeout=60000)
+            page.goto(member_url, wait_until="domcontentloaded", timeout=60000)
             
             # Auto-heal session if expired
             try:
@@ -238,7 +246,7 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                 pass
 
             # 2. Navigate to Employee Details
-            page.goto("https://app.dev.empmonitor.com/admin/employee-details", wait_until="domcontentloaded", timeout=60000)
+            page.goto(employee_details_url, wait_until="domcontentloaded", timeout=60000)
             
             search_box = page.locator("#search, input.search-field, input[placeholder='Search ...']").first
             expect(search_box).to_be_visible(timeout=60000)
@@ -519,6 +527,19 @@ def main():
     print("=" * 76)
 
     # 1. Interactive Inputs
+    env_choice = input("Select Target Environment [1=dev (default), 2=live]: ").strip().lower()
+    if env_choice in ["2", "live", "prod", "production"]:
+        env_name = "live"
+        base_url = "https://app.empmonitor.com"
+    else:
+        env_name = "dev"
+        base_url = "https://app.dev.empmonitor.com"
+
+    target_login_url = f"{base_url}/amember/member"
+    os.environ["EMP_ENV"] = env_name
+    os.environ["EMP_BASE_URL"] = base_url
+    os.environ["EMP_LOGIN_URL"] = target_login_url
+
     version_input = input("Enter EmpMonitor Agent Version (e.g., 3.5.0 or 3.1.0) [default 3.5.0]: ").strip()
     if not version_input:
         version_input = "3.5.0"
@@ -528,13 +549,13 @@ def main():
         target_user_input = "auto test"
 
     print("\n" + "-" * 76)
-    logger.info(f"Target Configuration: Version='{version_input}', Search User='{target_user_input}'")
+    logger.info(f"Target Configuration: Environment='{env_name.upper()}' ({target_login_url}), Version='{version_input}', Search User='{target_user_input}'")
 
     # Step 1 & 2: Local System Inspection
     l1_l2_results, last_200_logs = inspect_local_system(version_input)
 
     # Step 3: Playwright Web Dashboard Audit
-    l4_results = audit_web_dashboard(target_user_input)
+    l4_results = audit_web_dashboard(target_user_input, base_url=base_url)
 
     # Step 4: Cross-Layer Alignment & Report Compilation
     final_verdict = compile_unified_report(l1_l2_results, last_200_logs, l4_results)

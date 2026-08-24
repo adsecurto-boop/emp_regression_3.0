@@ -32,8 +32,9 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
     page = context.new_page()
     
     try:
+        from config.settings import BASE_URL, LOGIN_URL
         # 1. Navigate to member URL to validate/refresh session state
-        page.goto("https://app.dev.empmonitor.com/amember/member", wait_until="domcontentloaded", timeout=60000)
+        page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
         
         # Auto-heal session if expired and redirected to login form
         try:
@@ -57,7 +58,7 @@ def fetch_employee_credentials(playwright: Playwright, headless: bool = True) ->
             pass
 
         # 2. Navigate to Employee Details
-        page.goto("https://app.dev.empmonitor.com/admin/employee-details", wait_until="domcontentloaded", timeout=60000)
+        page.goto(f"{BASE_URL}/admin/employee-details", wait_until="domcontentloaded", timeout=60000)
         
         # 2. Locate DataTables Search Box using exact element ID #search
         search_box = page.locator("#search, input.search-field, input[placeholder='Search ...']").first

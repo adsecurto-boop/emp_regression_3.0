@@ -22,6 +22,7 @@ AUTH_PATH = AUTH_DIR / "auth.json"
 
 
 def generate_auth_state() -> None:
+    from config.settings import LOGIN_URL
     # Ensure our target profile directory exists
     AUTH_DIR.mkdir(parents=True, exist_ok=True)
     
@@ -32,8 +33,8 @@ def generate_auth_state() -> None:
         context = browser.new_context(ignore_https_errors=True)
         page = context.new_page()
         
-        logging.info("Navigating to EmpMonitor login interface...")
-        page.goto("https://app.dev.empmonitor.com/amember/member", wait_until="domcontentloaded", timeout=60000)
+        logging.info(f"Navigating to EmpMonitor login interface: {LOGIN_URL}")
+        page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
         
         # We fill the credentials dynamically using auth_helper
         logging.info("Retrieving dashboard login credentials...")
@@ -73,4 +74,11 @@ def generate_auth_state() -> None:
 
 
 if __name__ == "__main__":
+    if sys.stdin.isatty():
+        env_choice = input("Select Environment [1=dev (default), 2=live]: ").strip().lower()
+        if env_choice in ["2", "live", "prod", "production"]:
+            import os
+            os.environ["EMP_ENV"] = "live"
+            os.environ["EMP_BASE_URL"] = "https://app.empmonitor.com"
+            os.environ["EMP_LOGIN_URL"] = "https://app.empmonitor.com/amember/member"
     generate_auth_state()
