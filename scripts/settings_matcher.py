@@ -193,6 +193,7 @@ class WebDashboardSettingsExtractor:
 
             try:
                 from config.settings import BASE_URL, LOGIN_URL
+                logger.info(f"Target Environment URL: {LOGIN_URL}")
                 # 1. Navigate to member URL & auto-heal session if expired
                 page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
                 try:
@@ -291,6 +292,17 @@ class SettingsComparator:
 
 
 def main():
+    if sys.stdin.isatty():
+        env_choice = input("Select Target Environment [1=dev (default), 2=live]: ").strip().lower()
+        if env_choice in ["2", "live", "prod", "production"]:
+            os.environ["EMP_ENV"] = "live"
+            os.environ["EMP_BASE_URL"] = "https://app.empmonitor.com"
+            os.environ["EMP_LOGIN_URL"] = "https://app.empmonitor.com/amember/member"
+        else:
+            os.environ["EMP_ENV"] = "dev"
+            os.environ["EMP_BASE_URL"] = "https://app.dev.empmonitor.com"
+            os.environ["EMP_LOGIN_URL"] = "https://app.dev.empmonitor.com/amember/member"
+
     logger.info("Initializing EmpMonitor Telemetry Settings Matcher Utility...")
 
     # Step 1: Parse Local Agent Configurations (L1)
