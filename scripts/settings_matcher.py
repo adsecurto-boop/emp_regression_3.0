@@ -25,6 +25,19 @@ logging.basicConfig(
 logger = logging.getLogger("SettingsMatcher")
 
 
+# Ensure project root is in sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.utils.path_resolver import (
+    resolve_empm_ini,
+    resolve_local_db,
+    find_screen_dirs,
+    discover_oju_directories,
+)
+
+
 def mask_sensitive_value(key: str, value: str) -> str:
     """
     Mask sensitive configuration values (tokens, passwords, keys) with asterisks.
@@ -45,26 +58,13 @@ class LocalConfigParser:
 
     def __init__(self):
         self.config_js_path = Path(r"C:\Program Files\EmpMonitor\EmpMonitor\gui\configs\config.js")
-        self.appdata_dir = Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming")))
-        self.screen_dir = self.appdata_dir / "screen"
-        self.oju_dir: Optional[Path] = None
         self.ini_path: Optional[Path] = None
         self.db_path: Optional[Path] = None
 
     def discover_paths(self) -> None:
-        """Locates active OjU* configuration directory under AppData screen."""
-        if self.screen_dir.exists():
-            oju_matches = list(self.screen_dir.glob("OjU*"))
-            if oju_matches:
-                self.oju_dir = oju_matches[0]
-                self.ini_path = self.oju_dir / "empm.ini"
-                
-                # Resolve local_db20.db path
-                empm_dir = self.oju_dir / "empm"
-                if empm_dir.exists() and (empm_dir / "local_db20.db").exists():
-                    self.db_path = empm_dir / "local_db20.db"
-                elif (self.screen_dir / "empm" / "local_db20.db").exists():
-                    self.db_path = self.screen_dir / "empm" / "local_db20.db"
+        """Locates active empm.ini and local_db20.db across Local and Roaming AppData screen folders."""
+        self.ini_path, _ = resolve_empm_ini()
+        self.db_path = resolve_local_db()
 
     def parse_config_js(self) -> str:
         """Parses config.js and returns masked contents or summary."""

@@ -52,28 +52,33 @@ def mask_sensitive_value(key: str, value: str) -> str:
     return value
 
 
-def parse_version_string(version_str: str) -> Tuple[int, ...]:
-    """Parse version string into a comparable tuple of integers."""
-    parts = re.findall(r"\d+", version_str)
-    return tuple(int(p) for p in parts) if parts else (0, 0, 0)
-
+from src.utils.path_resolver import (
+    parse_version_string,
+    resolve_empm_ini,
+    resolve_local_db,
+    resolve_log_directories,
+    harvest_latest_logs,
+    resolve_telemetry_directory,
+    find_screen_dirs,
+    discover_oju_directories,
+)
 
 # ==============================================================================
 # PHASE 1: Versioning, Binary Presence & Running Process Checks
 # ==============================================================================
-def phase_1_binary_and_version_checks() -> None:
+def phase_1_binary_and_version_checks() -> Tuple[int, ...]:
     logger.info("=== PHASE 1: Interactive Versioning & Binary Checks ===")
     
-    version_input = input("Enter EmpMonitor Agent Version (e.g., 3.2.0 or 3.1.0): ").strip()
+    version_input = input("Enter EmpMonitor Agent Version (e.g., 3.2.0 or 3.0.0) [default 3.0.0]: ").strip()
     if not version_input:
-        version_input = "3.2.0"
+        version_input = "3.0.0"
         logger.info(f"No version entered. Defaulting to: {version_input}")
 
     agent_version = parse_version_string(version_input)
     baseline_version = parse_version_string("3.1.0")
 
-    if agent_version > baseline_version:
-        logger.info(f"Modern version detected ({version_input} > 3.1.0). Validating binary paths...")
+    if agent_version >= baseline_version:
+        logger.info(f"Modern version detected ({version_input} >= 3.1.0). Validating binary paths...")
         missing_binaries = []
         for binary_path in MODERN_BINARIES:
             path_obj = Path(binary_path)
@@ -95,7 +100,7 @@ def phase_1_binary_and_version_checks() -> None:
             else:
                 logger.warning(f"[INACTIVE] Process not detected running: {proc_name}")
     else:
-        logger.warning(f"Legacy version detected ({version_input} <= 3.1.0). Skipping modern process checks.")
+        logger.info(f"Legacy version detected ({version_input} < 3.1.0). Skipping modern process & service checks.")
 
     # Locate and print config.js with masked tokens
     config_js_path = Path(r"C:\Program Files\EmpMonitor\EmpMonitor\gui\configs\config.js")
@@ -114,6 +119,8 @@ def phase_1_binary_and_version_checks() -> None:
             logger.error(f"Failed to read config.js: {e}")
     else:
         logger.info(f"config.js file not present at: {config_js_path}")
+
+    return agent_version
 
 
 # ==============================================================================
@@ -147,100 +154,75 @@ def phase_2_dashboard_handoff() -> Optional[str]:
 # ==============================================================================
 # PHASE 3: Dynamic AppData Discovery, Log Harvest & Config Extraction
 # ==============================================================================
-def phase_3_appdata_and_log_harvest() -> Tuple[Path, Optional[Path], Optional[str]]:
+def phase_3_appdata_and_log_harvest() -> Optional[str]:
     logger.info("\n=== PHASE 3: Dynamic AppData Discovery & Log Harvest ===")
     
-    appdata_dir = os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))
-    screen_dir = Path(appdata_dir) / "screen"
-    logger.info(f"Resolved AppData Screen Path: {screen_dir}")
+    screen_dirs = find_screen_dirs()
+    logger.info(f"Resolved Local Screen: {screen_dirs['local']}")
+    logger.info(f"Resolved Roaming Screen: {screen_dirs['roaming']}")
 
-    if not screen_dir.exists():
-        logger.warning(f"Screen directory does not exist: {screen_dir}")
-
-    empm_dir = screen_dir / "empm"
-    if empm_dir.exists():
-        logger.info(f"[FOUND] empm directory present at: {empm_dir}")
-    else:
-        logger.warning(f"[MISSING] empm directory missing at: {empm_dir}")
-
-    # Discover active config directory starting with prefix 'OjU'
-    oju_matches = list(screen_dir.glob("OjU*"))
-    oju_dir: Optional[Path] = oju_matches[0] if oju_matches else None
-    
-    if oju_dir:
-        logger.info(f"[FOUND] Active configuration directory: {oju_dir.name} ({oju_dir})")
+    discovered_oju = discover_oju_directories()
+    if discovered_oju:
+        for oju in discovered_oju:
+            logger.info(f"[FOUND] Active configuration directory: {oju.name} ({oju})")
     else:
         logger.warning("No configuration directory starting with 'OjU*' found under AppData screen!")
 
-    # Log Harvest: Retrieve last 50 lines of today's log file
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    logs_dir = empm_dir / "logs"
-    today_log_path = logs_dir / f"{today_str}.txt"
-    
-    if not today_log_path.exists():
-        # Fallback to most recent log file if today's file doesn't exist
-        log_files = sorted(logs_dir.glob("*.txt"), key=lambda f: f.stat().st_mtime, reverse=True) if logs_dir.exists() else []
-        today_log_path = log_files[0] if log_files else None
-
-    if today_log_path and today_log_path.exists():
-        logger.info(f"Harvesting last 50 log lines from: {today_log_path}")
-        try:
-            lines = today_log_path.read_text(encoding="utf-8", errors="ignore").splitlines()
-            last_50 = lines[-50:]
-            print("\n--- [LOG HARVEST - LAST 50 LINES] ---")
-            print("\n".join(last_50))
-            print("--- [END LOG HARVEST] ---\n")
-        except Exception as e:
-            logger.error(f"Error reading log file {today_log_path}: {e}")
+    # Log Harvest: Retrieve last 50 lines of today's log file (searches Local and Roaming)
+    active_log_file, last_50_logs = harvest_latest_logs(line_count=50)
+    if active_log_file and active_log_file.exists():
+        logger.info(f"Harvesting last 50 log lines from: {active_log_file}")
+        print("\n--- [LOG HARVEST - LAST 50 LINES] ---")
+        print("\n".join(last_50_logs))
+        print("--- [END LOG HARVEST] ---\n")
     else:
-        logger.warning(f"No active log file found under: {logs_dir}")
+        logger.warning("No active log file found across Local or Roaming AppData screen logs.")
 
     # Configuration Extraction (EV-001): Parse empm.ini
     host_email: Optional[str] = None
-    if oju_dir:
-        ini_path = oju_dir / "empm.ini"
-        if ini_path.exists():
-            file_size_kb = ini_path.stat().st_size / 1024.0
-            logger.info(f"Found empm.ini ({file_size_kb:.2f} KB) at: {ini_path}")
-            
-            if file_size_kb > 3.0:
-                logger.info("empm.ini size is > 3 KB (EV-001 condition met). Extracting config...")
-            else:
-                logger.warning(f"empm.ini size ({file_size_kb:.2f} KB) is <= 3 KB.")
-
-            try:
-                content = ini_path.read_text(encoding="utf-8", errors="ignore")
-                
-                # Parse key-values with masking
-                config = configparser.ConfigParser(interpolation=None, strict=False, allow_no_value=True)
-                try:
-                    config.read_string(content)
-                except Exception:
-                    # Fallback for INI without section headers
-                    config.read_string("[DEFAULT]\n" + content)
-
-                logger.info("--- Parsed empm.ini Configurations (Masked) ---")
-                for section in config.sections():
-                    for key, val in config.items(section):
-                        if key.lower() == "email":
-                            host_email = val
-                        masked_val = mask_sensitive_value(key, val or "")
-                        print(f"  {key} = {masked_val}")
-
-                # Backup regex search for email if section parsing missed it
-                if not host_email:
-                    email_match = re.search(r"email\s*=\s*([^\s\r\n]+)", content, re.IGNORECASE)
-                    if email_match:
-                        host_email = email_match.group(1)
-                
-                if host_email:
-                    logger.info(f"[EXTRACTED] Host Email: {host_email}")
-            except Exception as e:
-                logger.error(f"Failed to parse empm.ini: {e}")
+    ini_path, file_size_kb = resolve_empm_ini()
+    
+    if ini_path and ini_path.exists():
+        logger.info(f"Found empm.ini ({file_size_kb:.2f} KB) at: {ini_path}")
+        
+        if file_size_kb > 3.0:
+            logger.info("empm.ini size is > 3 KB (EV-001 condition met). Extracting config...")
         else:
-            logger.warning(f"empm.ini file not found at: {ini_path}")
+            logger.warning(f"empm.ini size ({file_size_kb:.2f} KB) is <= 3 KB.")
 
-    return screen_dir, oju_dir, host_email
+        try:
+            content = ini_path.read_text(encoding="utf-8", errors="ignore")
+            
+            # Parse key-values with masking
+            config = configparser.ConfigParser(interpolation=None, strict=False, allow_no_value=True)
+            try:
+                config.read_string(content)
+            except Exception:
+                # Fallback for INI without section headers
+                config.read_string("[DEFAULT]\n" + content)
+
+            logger.info("--- Parsed empm.ini Configurations (Masked) ---")
+            for section in config.sections():
+                for key, val in config.items(section):
+                    if key.lower() == "email":
+                        host_email = val
+                    masked_val = mask_sensitive_value(key, val or "")
+                    print(f"  {key} = {masked_val}")
+
+            # Backup regex search for email if section parsing missed it
+            if not host_email:
+                email_match = re.search(r"email\s*=\s*([^\s\r\n]+)", content, re.IGNORECASE)
+                if email_match:
+                    host_email = email_match.group(1)
+            
+            if host_email:
+                logger.info(f"[EXTRACTED] Host Email: {host_email}")
+        except Exception as e:
+            logger.error(f"Failed to parse empm.ini: {e}")
+    else:
+        logger.warning("empm.ini file not found in Local or Roaming AppData!")
+
+    return host_email
 
 
 # ==============================================================================
@@ -273,28 +255,43 @@ def phase_4_cross_layer_alignment(dashboard_email: Optional[str], host_email: Op
 # ==============================================================================
 # PHASE 5: Telemetry Directory & SQLite Integrity Audit
 # ==============================================================================
-def phase_5_telemetry_and_sqlite_audit(screen_dir: Path, oju_dir: Optional[Path]) -> None:
+def phase_5_telemetry_and_sqlite_audit() -> None:
     logger.info("\n=== PHASE 5: Telemetry Directory & SQLite Integrity Audit ===")
     
-    # Resolve target telemetry directory (prefer OjU folder empm, fallback to screen/empm)
-    telemetry_dir = (oju_dir / "empm") if (oju_dir and (oju_dir / "empm").exists()) else (screen_dir / "empm")
-    logger.info(f"Auditing telemetry folder: {telemetry_dir}")
+    telemetry_dir = resolve_telemetry_directory()
+    logger.info(f"Resolved primary telemetry folder: {telemetry_dir}")
 
+    db_path = resolve_local_db()
+    screen_dirs = find_screen_dirs()
+
+    # Required items check
     required_items = [
-        ("failed_screenrecords", "dir"),
-        ("failed_screenshots", "dir"),
         ("logs", "dir"),
-        ("screen_records", "dir"),
         ("local_db20.db", "file"),
+        ("failed_screenshots", "dir"),
+        ("screen_records", "dir"),
+        ("failed_screenrecords", "dir"),
     ]
 
     for item_name, item_type in required_items:
-        target_path = telemetry_dir / item_name
-        exists = target_path.is_dir() if item_type == "dir" else target_path.is_file()
-        
-        if exists:
-            logger.info(f"[FOUND] Telemetry item present: {item_name}")
-        else:
+        # Check in resolved telemetry_dir, and fallback across Local and Roaming screen folders
+        found = False
+        if telemetry_dir:
+            target_path = telemetry_dir / item_name
+            if (item_type == "dir" and target_path.is_dir()) or (item_type == "file" and target_path.is_file()):
+                found = True
+                logger.info(f"[FOUND] Telemetry item present: {item_name} ({target_path})")
+
+        if not found:
+            for s_dir in [screen_dirs["local"], screen_dirs["roaming"]]:
+                if s_dir and s_dir.exists():
+                    candidate = s_dir / "empm" / item_name
+                    if (item_type == "dir" and candidate.is_dir()) or (item_type == "file" and candidate.is_file()):
+                        found = True
+                        logger.info(f"[FOUND] Telemetry item present: {item_name} ({candidate})")
+                        break
+
+        if not found:
             # Print warning in red/highlighted text
             print(f"\033[91mCRITICAL DIRECTORY MISSING: {item_name}\033[0m")
             choice = input(f"Missing {item_name}. Do you want to continue the regression test or stop? [Continue/Stop]: ").strip().lower()
@@ -305,8 +302,7 @@ def phase_5_telemetry_and_sqlite_audit(screen_dir: Path, oju_dir: Optional[Path]
                 logger.info(f"Continuing audit despite missing item: {item_name}")
 
     # Database Integrity Audit (EV-003)
-    db_path = telemetry_dir / "local_db20.db"
-    if db_path.exists():
+    if db_path and db_path.exists():
         logger.info(f"Opening SQLite database connection to: {db_path}")
         try:
             conn = sqlite3.connect(str(db_path))
@@ -332,13 +328,13 @@ def main() -> None:
     logger.info("Starting Host Collector Telemetry & Environment Audit...")
     
     # Phase 1: Interactive Versioning & Binary Checks
-    phase_1_binary_and_version_checks()
+    agent_version = phase_1_binary_and_version_checks()
 
     # Phase 2: Interactive Dashboard Verification (L4 Handoff)
     dashboard_email = phase_2_dashboard_handoff()
 
     # Phase 3: Dynamic AppData Discovery & Log Harvest
-    screen_dir, oju_dir, host_email = phase_3_appdata_and_log_harvest()
+    host_email = phase_3_appdata_and_log_harvest()
 
     # Phase 4: Cross-Layer Email Alignment
     alignment_success = phase_4_cross_layer_alignment(dashboard_email, host_email)
@@ -347,7 +343,7 @@ def main() -> None:
         sys.exit(1)
 
     # Phase 5: Telemetry Directory & SQLite Integrity Audit
-    phase_5_telemetry_and_sqlite_audit(screen_dir, oju_dir)
+    phase_5_telemetry_and_sqlite_audit()
 
     logger.info("\n[COMPLETED] Host Collector Audit Execution Finished Successfully!")
 

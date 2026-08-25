@@ -60,13 +60,22 @@ def parse_version_string(version_str: str) -> Tuple[int, ...]:
     return tuple(int(p) for p in parts) if parts else (0, 0, 0)
 
 
+from src.utils.path_resolver import (
+    parse_version_string,
+    resolve_empm_ini,
+    resolve_local_db,
+    harvest_latest_logs,
+    find_screen_dirs,
+    discover_oju_directories,
+)
+
 # ==============================================================================
 # STEP 1 & 2: Local System Inspection (L1 & L2)
 # ==============================================================================
 def inspect_local_system(version_input: str) -> Tuple[Dict[str, Any], List[str]]:
     """
     Executes binary checks, process monitoring, config parsing (config.js & empm.ini),
-    and harvests the last 200 log lines from today's log file.
+    and harvests the last 200 log lines across Local and Roaming AppData.
     """
     logger.info("=== STEP 1: Local System Inspection (L1 & L2) ===")
     
@@ -76,8 +85,8 @@ def inspect_local_system(version_input: str) -> Tuple[Dict[str, Any], List[str]]
     binary_statuses = {}
     process_statuses = {}
 
-    if agent_version > baseline_version:
-        logger.info(f"Modern Agent Version detected ({version_input} > 3.1.0). Evaluating binaries & active processes...")
+    if agent_version >= baseline_version:
+        logger.info(f"Modern Agent Version detected ({version_input} >= 3.1.0). Evaluating binaries & active processes...")
         for binary_path in MODERN_BINARIES:
             name = Path(binary_path).name
             exists = Path(binary_path).exists()
@@ -92,6 +101,14 @@ def inspect_local_system(version_input: str) -> Tuple[Dict[str, Any], List[str]]
             else:
                 process_statuses[proc] = "INACTIVE"
             logger.info(f"  [{process_statuses[proc]}] Process: {proc}")
+    else:
+        logger.info(f"Legacy Agent Version detected ({version_input} < 3.1.0). Skipping modern service checks.")
+        for binary_path in MODERN_BINARIES:
+            name = Path(binary_path).name
+            binary_statuses[name] = "N/A (Legacy < 3.1.0)"
+        target_procs = ["empmonitor.exe", "updatemgr_emp.exe", "esr.exe", "emp_psa_service.exe"]
+        for proc in target_procs:
+            process_statuses[proc] = "N/A (Legacy < 3.1.0)"
 
     # Parse config.js
     config_js_path = Path(r"C:\Program Files\EmpMonitor\EmpMonitor\gui\configs\config.js")
@@ -109,70 +126,54 @@ def inspect_local_system(version_input: str) -> Tuple[Dict[str, Any], List[str]]
         except Exception as e:
             config_js_masked = f"Error reading config.js: {e}"
 
-    # Parse empm.ini & AppData Discovery
-    appdata_dir = os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))
-    screen_dir = Path(appdata_dir) / "screen"
-    oju_matches = list(screen_dir.glob("OjU*")) if screen_dir.exists() else []
-    oju_dir = oju_matches[0] if oju_matches else None
-
+    # Parse empm.ini & AppData Discovery (Checking both Local & Roaming AppData)
+    screen_dirs = find_screen_dirs()
+    logger.info(f"[L1 AppData Discovery] Local Screen: {screen_dirs['local']}, Roaming Screen: {screen_dirs['roaming']}")
+    
+    ini_path, ini_size_kb = resolve_empm_ini()
     host_email = None
-    ini_size_kb = 0.0
-    ini_path_str = "Not Found"
+    ini_path_str = str(ini_path) if ini_path else "Not Found"
     ini_attributes = {}
 
-    if oju_dir:
-        ini_path = oju_dir / "empm.ini"
-        ini_path_str = str(ini_path)
-        if ini_path.exists():
-            ini_size_kb = round(ini_path.stat().st_size / 1024.0, 2)
-            logger.info(f"[L1] Found empm.ini ({ini_size_kb} KB) at: {ini_path}")
-            if ini_size_kb > 3.0:
-                logger.info("[EV-001 VALIDATED] empm.ini file size is > 3 KB.")
+    if ini_path and ini_path.exists():
+        logger.info(f"[L1] Found empm.ini ({ini_size_kb} KB) at: {ini_path}")
+        if ini_size_kb > 3.0:
+            logger.info("[EV-001 VALIDATED] empm.ini file size is > 3 KB.")
+        else:
+            logger.warning(f"[EV-001 WARNING] empm.ini file size ({ini_size_kb} KB) is <= 3 KB.")
 
+        try:
+            content = ini_path.read_text(encoding="utf-8", errors="ignore")
+            config = configparser.ConfigParser(interpolation=None, strict=False, allow_no_value=True)
             try:
-                content = ini_path.read_text(encoding="utf-8", errors="ignore")
-                config = configparser.ConfigParser(interpolation=None, strict=False, allow_no_value=True)
-                try:
-                    config.read_string(content)
-                except Exception:
-                    config.read_string("[DEFAULT]\n" + content)
+                config.read_string(content)
+            except Exception:
+                config.read_string("[DEFAULT]\n" + content)
 
-                for section in config.sections():
-                    for key, val in config.items(section):
-                        if key.lower() == "email":
-                            host_email = val
-                        masked_val = mask_sensitive_value(key, val or "")
-                        ini_attributes[key] = masked_val
+            for section in config.sections():
+                for key, val in config.items(section):
+                    if key.lower() == "email":
+                        host_email = val
+                    masked_val = mask_sensitive_value(key, val or "")
+                    ini_attributes[key] = masked_val
 
-                if not host_email:
-                    email_match = re.search(r"email\s*=\s*([^\s\r\n]+)", content, re.IGNORECASE)
-                    if email_match:
-                        host_email = email_match.group(1)
-            except Exception as e:
-                logger.error(f"Failed to parse empm.ini: {e}")
+            if not host_email:
+                email_match = re.search(r"email\s*=\s*([^\s\r\n]+)", content, re.IGNORECASE)
+                if email_match:
+                    host_email = email_match.group(1)
+        except Exception as e:
+            logger.error(f"Failed to parse empm.ini: {e}")
+    else:
+        logger.warning("[L1] empm.ini was not found in Local or Roaming AppData.")
 
     logger.info(f"[L1 EXTRACTED] Local Active Host Email: {host_email or 'Unknown'}")
 
-    # Harvest Last 200 Log Lines
-    empm_dir = (oju_dir / "empm") if (oju_dir and (oju_dir / "empm").exists()) else (screen_dir / "empm")
-    logs_dir = empm_dir / "logs"
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    today_log_path = logs_dir / f"{today_str}.txt"
-
-    if not today_log_path.exists() and logs_dir.exists():
-        log_files = sorted(logs_dir.glob("*.txt"), key=lambda f: f.stat().st_mtime, reverse=True)
-        today_log_path = log_files[0] if log_files else None
-
-    last_200_logs = []
-    if today_log_path and today_log_path.exists():
-        logger.info(f"[L2 Log Harvest] Reading last 200 lines from: {today_log_path}")
-        try:
-            all_lines = today_log_path.read_text(encoding="utf-8", errors="ignore").splitlines()
-            last_200_logs = all_lines[-200:]
-        except Exception as e:
-            logger.error(f"Error harvesting logs: {e}")
+    # Harvest Last 200 Log Lines (Dynamically searches Local and Roaming logs)
+    active_log_file, last_200_logs = harvest_latest_logs(line_count=200)
+    if active_log_file:
+        logger.info(f"[L2 Log Harvest] Harvested {len(last_200_logs)} lines from: {active_log_file}")
     else:
-        logger.warning(f"No active log file found under: {logs_dir}")
+        logger.warning("[L2 Log Harvest] No active log file found in Local or Roaming AppData.")
 
     l1_l2_results = {
         "agent_version": version_input,

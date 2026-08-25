@@ -23,6 +23,30 @@ except ImportError:
 AUTH_PATH = "playwright-profile/auth.json"
 
 
+def pytest_addoption(parser):
+    """Add --env CLI option to pytest (e.g., pytest --env=live or pytest --env=dev)."""
+    parser.addoption(
+        "--env",
+        action="store",
+        default=None,
+        help="Target environment: 'dev' (https://app.dev.empmonitor.com) or 'live' (https://app.empmonitor.com)"
+    )
+
+
+def pytest_configure(config):
+    """Configure environment variables based on --env CLI flag."""
+    env_opt = config.getoption("--env", default=None)
+    if env_opt:
+        env_choice = env_opt.strip().lower()
+        os.environ["EMP_ENV"] = env_choice
+        if env_choice in ["live", "prod", "production"]:
+            os.environ["EMP_BASE_URL"] = "https://app.empmonitor.com"
+            os.environ["EMP_LOGIN_URL"] = "https://app.empmonitor.com/amember/member"
+        else:
+            os.environ["EMP_BASE_URL"] = "https://app.dev.empmonitor.com"
+            os.environ["EMP_LOGIN_URL"] = "https://app.dev.empmonitor.com/amember/member"
+
+
 @pytest.fixture(scope="session")
 def auth_state_file() -> Path:
     """Fixture returning path to cached auth state JSON file."""

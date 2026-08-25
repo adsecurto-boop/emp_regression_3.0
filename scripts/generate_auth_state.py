@@ -77,8 +77,11 @@ if __name__ == "__main__":
     if sys.stdin.isatty():
         env_choice = input("Select Environment [1=dev (default), 2=live]: ").strip().lower()
         if env_choice in ["2", "live", "prod", "production"]:
-            import os
             os.environ["EMP_ENV"] = "live"
             os.environ["EMP_BASE_URL"] = "https://app.empmonitor.com"
             os.environ["EMP_LOGIN_URL"] = "https://app.empmonitor.com/amember/member"
+        else:
+            os.environ["EMP_ENV"] = "dev"
+            os.environ["EMP_BASE_URL"] = "https://app.dev.empmonitor.com"
+            os.environ["EMP_LOGIN_URL"] = "https://app.dev.empmonitor.com/amember/member"
     generate_auth_state()
