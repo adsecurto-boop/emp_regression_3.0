@@ -4,6 +4,7 @@ Purpose: Logs in using credentials and caches session state to bypass login form
 Evidence Mapping: Part of L4 Web Dashboard Setup (EV-013)
 """
 
+import os
 import sys
 import logging
 from pathlib import Path
