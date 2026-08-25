@@ -249,6 +249,10 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
 
             # 2. Navigate to Employee Details
             page.goto(employee_details_url, wait_until="domcontentloaded", timeout=60000)
+            try:
+                page.wait_for_load_state("networkidle", timeout=15000)
+            except Exception:
+                pass
             
             search_box = page.locator("#search, input.search-field, input[placeholder='Search ...']").first
             expect(search_box).to_be_visible(timeout=60000)
@@ -266,7 +270,25 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
             except Exception:
                 search_box.press("Enter")
                 
-            page.wait_for_timeout(3000)
+            # Wait for network idle and DataTables AJAX response to settle fully
+            try:
+                page.wait_for_load_state("networkidle", timeout=15000)
+            except Exception:
+                pass
+
+            # Wait for DataTables loading overlay to hide if present
+            try:
+                page.locator(".dataTables_processing").wait_for(state="hidden", timeout=10000)
+            except Exception:
+                pass
+
+            user_link = page.locator(f"a:has-text('{target_user}'), td:has-text('{target_user}')").first
+
+            # Wait up to 15s for the target user link/row to appear in the table grid
+            try:
+                user_link.wait_for(state="visible", timeout=15000)
+            except Exception:
+                page.wait_for_timeout(3000)
 
             # Check if target user link exists in the grid and extract email directly from grid row
             grid_email = None
@@ -277,8 +299,6 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                     if row_emails:
                         grid_email = row_emails[0].strip()
                         break
-
-            user_link = page.locator(f"a:has-text('{target_user}'), td:has-text('{target_user}')").first
             
             if user_link.count() > 0 and user_link.is_visible():
                 logger.info(f"[L4 MATCH] Target user '{target_user}' found in Employee Grid!")
@@ -287,11 +307,16 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                     results["dashboard_email"] = grid_email
 
                 grid_screenshot = EVIDENCE_DIR / "01_employee_grid_match.png"
+                page.wait_for_timeout(1000)
                 page.screenshot(path=str(grid_screenshot), timeout=30000)
                 results["evidence_files"].append("01_employee_grid_match.png")
 
                 # Click user link to open details
                 user_link.click()
+                try:
+                    page.wait_for_load_state("networkidle", timeout=15000)
+                except Exception:
+                    pass
                 page.wait_for_timeout(2000)
 
                 # Open Edit Modal to extract/verify registered email
@@ -347,6 +372,10 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                         tab_btn = page.locator(f"a[href*='{href_key}']").first
                         if tab_btn.count() > 0:
                             tab_btn.click()
+                            try:
+                                page.wait_for_load_state("networkidle", timeout=15000)
+                            except Exception:
+                                pass
                             page.wait_for_timeout(3000)
                             try:
                                 page.keyboard.press("Escape")
