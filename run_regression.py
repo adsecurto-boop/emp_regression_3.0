@@ -363,9 +363,11 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                     ("06_web_history_module.png", "#BrowserHistory", "Web History Module"),
                     ("07_screenshots_module.png", "#Screenshots", "Screenshots Gallery Module"),
                     ("08_productivity_module.png", "#Productivity", "Productivity Timeline Module"),
-                    ("09_screen_recording_module.png", "#ScreenRecording", "Screen Recording Module")
+                    ("09_screen_recording_module.png", "#ScreenRecording", "Screen Recording Module"),
+                    ("10_screencast_module.png", "#ScreenCast", "Screencast Stream Telemetry Module")
                 ]
 
+                screencast_status = "OFFLINE / FALLBACK"
                 for fname, href_key, label in telemetry_tabs:
                     try:
                         logger.info(f"[Module Evidence] Capturing {label} ({fname})...")
@@ -377,6 +379,15 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                             except Exception:
                                 pass
                             page.wait_for_timeout(3000)
+
+                            if href_key == "#ScreenCast":
+                                live_canvas = page.locator("#canvas-img-0, canvas.screencast-canvas").first
+                                if live_canvas.count() > 0 and live_canvas.is_visible():
+                                    screencast_status = "LIVE / ONLINE"
+                                else:
+                                    screencast_status = "OFFLINE / FALLBACK"
+                                logger.info(f"[L4 TELEMETRY] Screencast Stream Status: {screencast_status}")
+
                             try:
                                 page.keyboard.press("Escape")
                             except Exception:
@@ -388,7 +399,8 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                     except Exception as e:
                         logger.warning(f"Warning capturing {label}: {e}")
 
-                results["telemetry_summary"] = "User active on Web Dashboard (Email, Grid & All 6 Telemetry Modules verified)."
+                results["screencast_status"] = screencast_status
+                results["telemetry_summary"] = f"User active on Web Dashboard (Email, Grid, 6 Telemetry Modules & Screencast [{screencast_status}] verified)."
 
             else:
                 logger.warning(f"[L4 MISMATCH / FAILURE] Target user '{target_user}' NOT found in Employee Grid!")
@@ -471,6 +483,7 @@ def compile_unified_report(l1_l2_results: Dict[str, Any], last_200_logs: List[st
         f"- **Local Active Host Email (L1)**: `{l1_l2_results['host_email']}`",
         f"- **Searched Dashboard User (L4)**: `{searched_user}`",
         f"- **Dashboard Registered Email (L4)**: `{l4_results['dashboard_email'] or 'N/A'}`",
+        f"- **Screencast Stream Status (L4)**: `{l4_results.get('screencast_status', 'N/A')}`",
         f"- **Final System Verdict**: **`{verdict}`**",
         ""
     ]
