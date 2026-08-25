@@ -58,13 +58,16 @@ def generate_auth_state() -> None:
         dashboard_header = page.get_by_role("heading", name="Dashboard")
         dashboard_header.wait_for(timeout=15000)
         
-        # Take screenshot evidence of the authenticated dashboard session
-        evidence_dir = Path("tests/evidence")
-        evidence_dir.mkdir(parents=True, exist_ok=True)
-        screenshot_path = evidence_dir / "00_authenticated_dashboard.png"
-        page.wait_for_timeout(3000)
-        page.screenshot(path=str(screenshot_path), timeout=15000)
-        logging.info(f"Dashboard screenshot evidence saved at: {screenshot_path}")
+        # Take screenshot evidence of the authenticated dashboard session (optional)
+        try:
+            evidence_dir = Path("tests/evidence")
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            screenshot_path = evidence_dir / "00_authenticated_dashboard.png"
+            page.wait_for_timeout(2000)
+            page.screenshot(path=str(screenshot_path), timeout=5000)
+            logging.info(f"Dashboard screenshot evidence saved at: {screenshot_path}")
+        except Exception as e:
+            logging.warning(f"Screenshot capture skipped or timed out ({e}). Proceeding to save session state...")
         
         # Save cookies and local storage state into our profile directory
         context.storage_state(path=str(AUTH_PATH))
