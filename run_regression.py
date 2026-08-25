@@ -222,7 +222,7 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
         return results
 
     with sync_playwright() as p:
-        is_headless = os.getenv("HEADLESS", "false").lower() == "true"
+        is_headless = os.getenv("HEADLESS", "true").lower() == "true"
         browser = p.chromium.launch(headless=is_headless)
         context = browser.new_context(storage_state=auth_state_path, ignore_https_errors=True)
         page = context.new_page()
