@@ -76,11 +76,16 @@ class SettingsPage(BasePage):
     AUTO_CHECKOUT_ENABLE = "#autoCheckOut1"
     AUTO_CHECKOUT_DISABLE = "#autoCheckOut0"
 
+    # Website & Application Blocking Locators
+    WEBSITES_ENABLE = "input[name='WebsiteOption']"
+    WEBSITES_ADV_MODAL = "#Websites_adv"
+    ADVANCE_SAVE_BUTTON = "#AdvanceSaveButton"
+
     # Dropdowns & Radios
     SS_FREQUENCY_SELECT = "#SSFrequencySelected"
     VIDEO_QUALITY_SELECT = "#videoQuality"
-    STEALTH_RADIO_VISIBLE = "input[name='systemVisibility'][value='1'], input[type='radio'][value='1']"
-    STEALTH_RADIO_STEALTH = "input[name='systemVisibility'][value='0'], input[type='radio'][value='0']"
+    STEALTH_RADIO_VISIBLE = "#visable, input[name='EmpIcon'][value='true']"
+    STEALTH_RADIO_STEALTH = "#stealth, input[name='EmpIcon'][value='false']"
 
     # Action Buttons
     SAVE_BUTTON = "button:has-text('Save'), input[value='Save'], .btn-primary:has-text('Save')"
@@ -89,31 +94,78 @@ class SettingsPage(BasePage):
     def __init__(self, page: Page) -> None:
         super().__init__(page)
 
-    def navigate_to_user_settings(self, user_name: str = "auto test", user_id: str = "45009") -> None:
+    def navigate_to_user_settings(self, user_name: str = "auto test", user_id: str = "237232") -> None:
         """
         Navigates directly to the user's tracking settings page (or via Employee Details search).
         """
-        from config.settings import BASE_URL
-        target_url = f"{BASE_URL}/admin/track-user-setting?id={user_id}"
-        logger.info(f"Navigating to User Settings page: {target_url}")
-        self.page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
-        
-        # Auto-heal session redirect if thrown back to login page
-        try:
-            if self.page.get_by_role("textbox", name="Username/Email").count() > 0 and self.page.get_by_role("textbox", name="Username/Email").is_visible():
-                logger.info("Session expired. Auto-healing login state...")
-                from src.utils.auth_helper import get_dashboard_credentials
-                dash_user, dash_pass = get_dashboard_credentials(prompt_if_missing=True)
-                if dash_user and dash_pass:
-                    self.page.get_by_role("textbox", name="Username/Email").fill(dash_user)
-                    self.page.get_by_role("textbox", name="Password").fill(dash_pass)
-                    self.page.get_by_role("button", name="Login").click()
-                    self.page.wait_for_load_state("networkidle")
-                    self.page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
-        except Exception:
-            pass
+        from config.settings import BASE_URL, LOGIN_URL
+        logger.info(f"Navigating to User Settings for '{user_name}' (id={user_id})...")
 
+        # 1. Try direct track-user-setting URL first
+        target_url = f"{BASE_URL}/admin/track-user-setting?id={user_id}"
+        self.page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
         self.page.wait_for_timeout(2000)
+
+        # Check if already on the user settings page (has #visable / #stealth or #KeyStrokeRadio1)
+        if self.page.locator("#visable, #stealth, #KeyStrokeRadio1, input[name='EmpIcon']").count() > 0:
+            logger.info("Direct Settings URL loaded successfully.")
+            return
+
+        # 2. Ensure authenticated session if redirected to login
+        user_field = self.page.get_by_role("textbox", name="Username/Email")
+        if user_field.count() > 0 and user_field.is_visible():
+            logger.info("Session unauthenticated. Logging in...")
+            from src.utils.auth_helper import get_dashboard_credentials
+            u, p = get_dashboard_credentials(prompt_if_missing=False)
+            if u and p:
+                user_field.fill(u)
+                self.page.get_by_role("textbox", name="Password").fill(p)
+                self.page.get_by_role("button", name="Login").click()
+                self.page.wait_for_timeout(5000)
+                try:
+                    self.page.context.storage_state(path="playwright-profile/auth.json")
+                except Exception:
+                    pass
+
+        # Try direct URL again after authenticating
+        self.page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+        self.page.wait_for_timeout(2000)
+        if self.page.locator("#visable, #stealth, #KeyStrokeRadio1, input[name='EmpIcon']").count() > 0:
+            logger.info("Direct Settings URL loaded successfully after auth.")
+            return
+
+        # 3. Fallback: Search user via Employee Details UI
+        logger.info("Direct URL not available. Navigating via Employee Details...")
+        self.page.goto(f"{BASE_URL}/employee/employee-details", wait_until="domcontentloaded", timeout=60000)
+        self.page.wait_for_timeout(3000)
+
+        close_btn = self.page.get_by_role("button", name="×")
+        if close_btn.count() > 0 and close_btn.first.is_visible():
+            try:
+                close_btn.first.click()
+                self.page.wait_for_timeout(1000)
+            except Exception:
+                pass
+
+        search_box = self.page.locator("#search, #Search, input.search-field, input[placeholder*='Search']").first
+        if search_box.count() > 0:
+            search_box.fill(user_name)
+            search_btn = self.page.locator("#SearchButton, button.search-btn, .search-btn, button:has-text('Search')").first
+            if search_btn.count() > 0 and search_btn.is_visible():
+                search_btn.click()
+            else:
+                search_box.press("Enter")
+            self.page.wait_for_timeout(3000)
+
+        user_link = self.page.locator(f"a:has-text('{user_name}'), td:has-text('{user_name}') a, #td{user_id} a").first
+        if user_link.count() > 0:
+            user_link.click()
+            self.page.wait_for_timeout(3000)
+
+        settings_btn = self.page.locator("a[href*='track-user-setting'], a.btn:has-text('Settings'), a.btn-link:has-text('Settings')").first
+        if settings_btn.count() > 0:
+            settings_btn.click()
+            self.page.wait_for_timeout(3000)
 
     def set_keystrokes(self, state: str) -> None:
         """Set Keystroke Monitoring toggle (enable/disable)."""
@@ -188,9 +240,26 @@ class SettingsPage(BasePage):
     def get_active_visibility_mode(self) -> str:
         """
         Detects the active Visibility Mode on the Web Dashboard settings page.
-        Returns "Visible" if the Visible radio button is checked, or "Stealth" if the Stealth radio button is checked.
+        Returns "Visible" if the Visible radio button (#visable / EmpIcon=true) is checked,
+        or "Stealth" if the Stealth radio button (#stealth / EmpIcon=false) is checked.
         """
         try:
+            # Wait for settings elements to be attached/visible
+            try:
+                self.page.wait_for_selector("#visable, #stealth, input[name='EmpIcon']", state="attached", timeout=10000)
+            except Exception:
+                pass
+
+            # 1. Primary check: EmpIcon radio inputs (#visable and #stealth)
+            vis_input = self.page.locator("#visable, input[name='EmpIcon'][value='true']").first
+            if vis_input.count() > 0 and vis_input.is_checked():
+                return "Visible"
+
+            stealth_input = self.page.locator("#stealth, input[name='EmpIcon'][value='false']").first
+            if stealth_input.count() > 0 and stealth_input.is_checked():
+                return "Stealth"
+
+            # 2. Check by role or label text
             visible_radio = self.page.get_by_role("radio", name="Visible")
             if visible_radio.count() > 0 and visible_radio.is_checked():
                 return "Visible"
@@ -199,7 +268,7 @@ class SettingsPage(BasePage):
             if stealth_radio.count() > 0 and stealth_radio.is_checked():
                 return "Stealth"
 
-            # Fallback check using element attributes
+            # 3. Fallback check using element attributes
             fallback_visible = self.page.locator(self.STEALTH_RADIO_VISIBLE).first
             if fallback_visible.count() > 0 and fallback_visible.is_checked():
                 return "Visible"
@@ -210,7 +279,7 @@ class SettingsPage(BasePage):
         except Exception as e:
             logger.warning(f"Could not extract visibility mode: {e}")
 
-        return "Stealth"
+        return "Unknown"
 
     def click_if_present(self, selector: str) -> None:
         """Safely clicks an element if present and visible."""
@@ -290,3 +359,133 @@ class SettingsPage(BasePage):
                     pass
         except Exception as e:
             logger.error(f"Error saving settings: {e}")
+
+    def enable_web_used(self) -> None:
+        """Enables the Web Used monitoring option."""
+        logger.info("Enabling Web Used monitoring option...")
+        try:
+            web_checkbox = self.page.locator(self.WEBSITES_ENABLE).first
+            if web_checkbox.count() > 0 and not web_checkbox.is_checked():
+                web_checkbox.check()
+        except Exception as e:
+            logger.warning(f"Could not enable Web Used option directly: {e}")
+
+    def open_websites_advanced_settings(self) -> None:
+        """Opens the Advanced Settings modal for Web Used / Website Blocking (#Websites_adv)."""
+        logger.info("Opening Websites Advanced Settings modal (#Websites_adv)...")
+        adv_btn = self.page.locator(
+            "tr:has-text('Web Used') button:has-text('Advanced Settings'), "
+            "button[data-target='#Websites_adv'], "
+            "button[data-bs-target='#Websites_adv'], "
+            "button[onclick*='Websites_adv']"
+        ).first
+        if adv_btn.count() > 0 and adv_btn.is_visible():
+            adv_btn.click()
+        else:
+            all_adv_buttons = self.page.get_by_role("button", name="Advanced Settings")
+            if all_adv_buttons.count() >= 3:
+                all_adv_buttons.nth(2).click()
+            elif all_adv_buttons.count() > 0:
+                all_adv_buttons.first.click()
+
+        self.page.locator(self.WEBSITES_ADV_MODAL).wait_for(state="visible", timeout=10000)
+
+    def configure_website_blocking(
+        self,
+        domains: list,
+        clear_existing: bool = True
+    ) -> None:
+        """
+        Configures blocked website domains in the #Websites_adv modal.
+        """
+        logger.info(f"Configuring blocked website domains: {domains}")
+        modal = self.page.locator(self.WEBSITES_ADV_MODAL).first
+        modal.wait_for(state="visible", timeout=10000)
+
+        web_group = modal.locator(".form-group:has(#userTrackBlockingWebsite), .form-group:has-text('Blocking Websites')").first
+
+        # Clear existing items in website blocking section if requested
+        if clear_existing and web_group.count() > 0:
+            remove_icons = web_group.locator(".select2-search-choice-close, .select2-selection__choice__remove, span:has-text('×')")
+            for _ in range(remove_icons.count()):
+                try:
+                    if remove_icons.first.is_visible():
+                        remove_icons.first.click()
+                        self.page.wait_for_timeout(300)
+                except Exception:
+                    break
+
+        # Add target domains
+        for domain in domains:
+            logger.info(f"Adding domain to blocklist: {domain}")
+            searchbox = web_group.locator(
+                "input.select2-search__field, input[type='search'], input[role='searchbox'], input.select2-input"
+            ).first
+            if searchbox.count() == 0 or not searchbox.is_visible():
+                searchbox = modal.locator("input.select2-search__field").first
+
+            searchbox.click()
+            searchbox.fill(domain)
+            self.page.wait_for_timeout(500)
+
+            option = self.page.get_by_role("option", name=domain).first
+            if option.count() > 0 and option.is_visible():
+                option.click()
+            else:
+                searchbox.press("Enter")
+            self.page.wait_for_timeout(500)
+
+    def configure_application_blocking(
+        self,
+        applications: list,
+        clear_existing: bool = True
+    ) -> None:
+        """
+        Configures blocked applications (e.g. ['notepad.exe', 'chrome.exe']) in the #Websites_adv modal.
+        Uses the exact selectors for the Blocking Applications select2 field (#userTrackBlockingApplciation).
+        """
+        logger.info(f"Configuring blocked applications: {applications}")
+        modal = self.page.locator(self.WEBSITES_ADV_MODAL).first
+        modal.wait_for(state="visible", timeout=10000)
+
+        app_group = modal.locator(".form-group:has(#userTrackBlockingApplciation), .form-group:has-text('Blocking Applications')").first
+
+        # Clear existing items in application blocking section if requested
+        if clear_existing and app_group.count() > 0:
+            remove_icons = app_group.locator(".select2-search-choice-close, .select2-selection__choice__remove, span:has-text('×')")
+            for _ in range(remove_icons.count()):
+                try:
+                    if remove_icons.first.is_visible():
+                        remove_icons.first.click()
+                        self.page.wait_for_timeout(300)
+                except Exception:
+                    break
+
+        # Add target application filenames (e.g. chrome.exe, notepad.exe)
+        for app in applications:
+            logger.info(f"Adding application to blocklist: {app}")
+            searchbox = app_group.locator(
+                "input.select2-search__field, input[type='search'], input[role='searchbox'], input.select2-input"
+            ).first
+            if searchbox.count() == 0 or not searchbox.is_visible():
+                searchbox = modal.locator("input.select2-search__field").nth(1)
+
+            searchbox.click()
+            searchbox.fill(app)
+            self.page.wait_for_timeout(500)
+
+            option = self.page.get_by_role("option", name=app).first
+            if option.count() > 0 and option.is_visible():
+                option.click()
+            else:
+                searchbox.press("Enter")
+            self.page.wait_for_timeout(500)
+
+    def save_advanced_settings(self) -> None:
+        """Saves and closes the Advanced Settings modal."""
+        logger.info("Saving Advanced Settings modal (#AdvanceSaveButton)...")
+        adv_save = self.page.locator(self.ADVANCE_SAVE_BUTTON).first
+        if adv_save.count() > 0 and adv_save.is_visible():
+            adv_save.click()
+            self.page.wait_for_timeout(1000)
+

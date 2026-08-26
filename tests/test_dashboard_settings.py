@@ -22,8 +22,10 @@ def test_apply_user_settings_scenario(authenticated_page: Page):
     """
     settings_page = SettingsPage(authenticated_page)
 
-    # 1. Navigate to target user settings panel (id=45009 / auto test)
-    settings_page.navigate_to_user_settings(user_name="auto test", user_id="45009")
+    # 1. Navigate to target user settings panel (auto test)
+    from config.settings import BASE_URL
+    target_user_id = "237232" if ("app.empmonitor.com" in BASE_URL and "dev" not in BASE_URL) else "45009"
+    settings_page.navigate_to_user_settings(user_name="auto test", user_id=target_user_id)
 
     # 2. Define custom settings scenario
     scenario = {

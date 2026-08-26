@@ -162,6 +162,20 @@ class LocalConfigParser:
 
             results["stealth_mode"] = "Inactive" if results["visibility_mode"] == "Visible" else "Active"
 
+            # Website Blocklist
+            raw_blocklist = raw_map.get("data\\tracking\\domain\\websiteblocklist", "")
+            if raw_blocklist and raw_blocklist.strip() != "@Invalid()":
+                results["website_blocklist"] = raw_blocklist.strip()
+            else:
+                results["website_blocklist"] = "None / Disabled"
+
+            # Application Blocklist
+            raw_app_blocklist = raw_map.get("data\\tracking\\domain\\appblocklist", raw_map.get("data\\tracking\\app\\appblocklist", ""))
+            if raw_app_blocklist and raw_app_blocklist.strip() != "@Invalid()":
+                results["app_blocklist"] = raw_app_blocklist.strip()
+            else:
+                results["app_blocklist"] = "None / Disabled"
+
         except Exception as e:
             logger.error(f"Failed to parse empm.ini: {e}")
 
@@ -178,14 +192,18 @@ class WebDashboardSettingsExtractor:
 
     def extract_dashboard_settings(self, headless: bool = True) -> Dict[str, Any]:
         """
-        Spawns Playwright, loads cached auth session, navigates to settings, and extracts configuration states.
+        Launches browser, logs in if necessary, navigates to user settings panel,
+        and extracts current tracking configuration.
         """
         web_results = {
-            "email": "N/A",
+            "email": "Unknown",
             "screenshots": "Unknown",
             "keystrokes": "Unknown",
             "screen_record": "Unknown",
+            "visibility_mode": "Unknown",
             "stealth_mode": "Unknown",
+            "website_blocklist": "N/A",
+            "app_blocklist": "N/A",
         }
 
         if not os.path.exists(self.auth_state_path):
@@ -216,9 +234,11 @@ class WebDashboardSettingsExtractor:
                 except Exception:
                     pass
 
-                # 2. Navigate to track-user-setting for target user (id=45009 / auto test)
-                page.goto(f"{BASE_URL}/admin/track-user-setting?id=45009", wait_until="domcontentloaded", timeout=60000)
-                page.wait_for_timeout(3000)
+                # 2. Navigate to user settings via SettingsPage POM
+                from src.pages.settings_page import SettingsPage
+                settings_page = SettingsPage(page)
+                target_user_id = "237232" if ("app.empmonitor.com" in BASE_URL and "dev" not in BASE_URL) else "45009"
+                settings_page.navigate_to_user_settings(user_name="auto test", user_id=target_user_id)
 
                 # Extract Email (hardcoded or extracted from detail page)
                 web_results["email"] = "autotest@gmail.com"
@@ -236,8 +256,8 @@ class WebDashboardSettingsExtractor:
 
                 # Extract Keystroke monitoring toggle
                 try:
-                    ks_input = page.locator("#userMonitorKeystrokes, input[name*='keystrokes']").first
-                    if ks_input.count() > 0 and ks_input.is_visible():
+                    ks_input = page.locator("#KeyStrokeRadio1, input[name='KeyStrokeOption'][value='1']").first
+                    if ks_input.count() > 0:
                         web_results["keystrokes"] = "Enabled" if ks_input.is_checked() else "Disabled"
                     else:
                         web_results["keystrokes"] = "Enabled"
@@ -246,9 +266,9 @@ class WebDashboardSettingsExtractor:
 
                 # Extract Screen Recording toggle
                 try:
-                    sr_select = page.locator("#userScreenRecordAddEditInput, select[name*='ScreenRecord']").first
-                    if sr_select.count() > 0 and sr_select.is_visible() and sr_select.input_value():
-                        web_results["screen_record"] = f"Enabled ({sr_select.input_value()})"
+                    sr_select = page.locator("#videoQuality, #vd1, select[name*='ScreenRecord']").first
+                    if sr_select.count() > 0 and sr_select.is_checked():
+                        web_results["screen_record"] = "Enabled"
                     else:
                         web_results["screen_record"] = "Disabled"
                 except Exception:
@@ -256,15 +276,18 @@ class WebDashboardSettingsExtractor:
 
                 # Extract Visibility Mode via SettingsPage POM
                 try:
-                    from src.pages.settings_page import SettingsPage
-                    settings_page = SettingsPage(page)
                     extracted_visibility = settings_page.get_active_visibility_mode()
                     web_results["visibility_mode"] = extracted_visibility
                 except Exception as vis_err:
                     logger.warning(f"Could not extract visibility mode: {vis_err}")
                     web_results["visibility_mode"] = "Unknown"
 
-                web_results["stealth_mode"] = "Inactive" if web_results.get("visibility_mode") == "Visible" else "Active"
+                if web_results.get("visibility_mode") == "Visible":
+                    web_results["stealth_mode"] = "Inactive"
+                elif web_results.get("visibility_mode") == "Stealth":
+                    web_results["stealth_mode"] = "Active"
+                else:
+                    web_results["stealth_mode"] = "Unknown"
 
                 # Capture full screenshot evidence of tracking settings page (EV-015)
                 try:
@@ -309,6 +332,8 @@ class SettingsComparator:
             ("Screen Recording", local_data.get("screen_record", "N/A"), web_data.get("screen_record", "N/A")),
             ("Visibility Mode", l1_vis, l4_vis),
             ("Stealth Mode", local_data.get("stealth_mode", "N/A"), web_data.get("stealth_mode", "N/A")),
+            ("Website Blocklist", local_data.get("website_blocklist", "N/A"), web_data.get("website_blocklist", "N/A")),
+            ("Application Blocklist", local_data.get("app_blocklist", "N/A"), web_data.get("app_blocklist", "N/A")),
         ]
 
         mismatch_found = False

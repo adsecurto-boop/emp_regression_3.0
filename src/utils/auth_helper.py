@@ -19,13 +19,13 @@ def get_dashboard_credentials(prompt_if_missing: bool = True) -> Tuple[str, str]
     username = (
         os.getenv("EMP_USERNAME") or 
         os.getenv("EMP_DASHBOARD_USER") or 
-        ""
+        "nokiaa"
     ).strip()
     
     password = (
         os.getenv("EMP_PASSWORD") or 
         os.getenv("EMP_DASHBOARD_PASS") or 
-        ""
+        "Shiv@123"
     ).strip()
 
     if not username and prompt_if_missing and sys.stdin.isatty():
