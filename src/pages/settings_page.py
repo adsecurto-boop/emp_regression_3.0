@@ -185,6 +185,33 @@ class SettingsPage(BasePage):
         else:
             self.click_if_present(self.STEALTH_RADIO_VISIBLE)
 
+    def get_active_visibility_mode(self) -> str:
+        """
+        Detects the active Visibility Mode on the Web Dashboard settings page.
+        Returns "Visible" if the Visible radio button is checked, or "Stealth" if the Stealth radio button is checked.
+        """
+        try:
+            visible_radio = self.page.get_by_role("radio", name="Visible")
+            if visible_radio.count() > 0 and visible_radio.is_checked():
+                return "Visible"
+
+            stealth_radio = self.page.get_by_role("radio", name="Stealth")
+            if stealth_radio.count() > 0 and stealth_radio.is_checked():
+                return "Stealth"
+
+            # Fallback check using element attributes
+            fallback_visible = self.page.locator(self.STEALTH_RADIO_VISIBLE).first
+            if fallback_visible.count() > 0 and fallback_visible.is_checked():
+                return "Visible"
+
+            fallback_stealth = self.page.locator(self.STEALTH_RADIO_STEALTH).first
+            if fallback_stealth.count() > 0 and fallback_stealth.is_checked():
+                return "Stealth"
+        except Exception as e:
+            logger.warning(f"Could not extract visibility mode: {e}")
+
+        return "Stealth"
+
     def click_if_present(self, selector: str) -> None:
         """Safely clicks an element if present and visible."""
         try:

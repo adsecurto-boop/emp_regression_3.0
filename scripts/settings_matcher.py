@@ -152,9 +152,15 @@ class LocalConfigParser:
             sr_enabled = raw_map.get("data\\features\\screen_record", raw_map.get("data\\screen_record\\is_enabled", "0"))
             results["screen_record"] = "Enabled" if sr_enabled == "1" else "Disabled"
 
-            # Stealth Mode / Visibility
+            # Stealth Mode / Visibility Mapping
             visibility = raw_map.get("data\\system\\visibility", "true")
-            results["stealth_mode"] = "Active" if str(visibility).lower() in ["true", "1"] else "Inactive"
+            vis_str = str(visibility).strip().lower()
+            if vis_str in ["true", "1"]:
+                results["visibility_mode"] = "Visible"
+            else:
+                results["visibility_mode"] = "Stealth"
+
+            results["stealth_mode"] = "Inactive" if results["visibility_mode"] == "Visible" else "Active"
 
         except Exception as e:
             logger.error(f"Failed to parse empm.ini: {e}")
@@ -248,8 +254,27 @@ class WebDashboardSettingsExtractor:
                 except Exception:
                     web_results["screen_record"] = "Disabled"
 
-                # Extract Stealth Mode / Visibility state
-                web_results["stealth_mode"] = "Active"
+                # Extract Visibility Mode via SettingsPage POM
+                try:
+                    from src.pages.settings_page import SettingsPage
+                    settings_page = SettingsPage(page)
+                    extracted_visibility = settings_page.get_active_visibility_mode()
+                    web_results["visibility_mode"] = extracted_visibility
+                except Exception as vis_err:
+                    logger.warning(f"Could not extract visibility mode: {vis_err}")
+                    web_results["visibility_mode"] = "Unknown"
+
+                web_results["stealth_mode"] = "Inactive" if web_results.get("visibility_mode") == "Visible" else "Active"
+
+                # Capture full screenshot evidence of tracking settings page (EV-015)
+                try:
+                    evidence_dir = Path("tests/evidence")
+                    evidence_dir.mkdir(parents=True, exist_ok=True)
+                    screenshot_path = evidence_dir / "EV-015_visibility_setting.png"
+                    page.screenshot(path=str(screenshot_path), full_page=True, timeout=10000)
+                    logger.info(f"Visibility setting evidence screenshot saved at: {screenshot_path}")
+                except Exception as ss_err:
+                    logger.warning(f"Could not save visibility screenshot: {ss_err}")
 
             except Exception as e:
                 logger.error(f"[L4 Playwright Error] Failed to extract web settings: {e}")
@@ -266,29 +291,46 @@ class SettingsComparator:
     """
 
     @staticmethod
-    def display_comparison(local_data: Dict[str, Any], web_data: Dict[str, Any]) -> None:
-        """Prints a clean side-by-side comparison table."""
+    def display_comparison(local_data: Dict[str, Any], web_data: Dict[str, Any]) -> str:
+        """Prints a clean side-by-side comparison table and evaluates alignment verdict."""
         print("\n" + "=" * 76)
         print(f"{'EMPMONITOR SETTINGS COMPARISON':^76}")
         print("=" * 76)
         print(f"{'FEATURE':<20} | {'LOCAL AGENT VALUE (L1)':<25} | {'WEB DASHBOARD VALUE (L4)':<25}")
         print("-" * 20 + "+" + "-" * 27 + "+" + "-" * 27)
 
+        l1_vis = local_data.get("visibility_mode", "Unknown")
+        l4_vis = web_data.get("visibility_mode", "Unknown")
+
         features = [
             ("Target User Email", local_data.get("email", "N/A"), web_data.get("email", "N/A")),
             ("Screenshots", local_data.get("screenshots", "N/A"), web_data.get("screenshots", "N/A")),
             ("Keystrokes", local_data.get("keystrokes", "N/A"), web_data.get("keystrokes", "N/A")),
             ("Screen Recording", local_data.get("screen_record", "N/A"), web_data.get("screen_record", "N/A")),
+            ("Visibility Mode", l1_vis, l4_vis),
             ("Stealth Mode", local_data.get("stealth_mode", "N/A"), web_data.get("stealth_mode", "N/A")),
         ]
 
+        mismatch_found = False
         for feature, l1_val, l4_val in features:
-            print(f"{feature:<20} | {l1_val:<25} | {l4_val:<25}")
+            status_flag = ""
+            if feature == "Visibility Mode":
+                if l1_val != "Unknown" and l4_val != "Unknown" and l1_val.lower() != l4_val.lower():
+                    mismatch_found = True
+                    status_flag = " [MISMATCH]"
+            print(f"{feature:<20} | {l1_val:<25} | {l4_val + status_flag:<25}")
 
         print("=" * 76)
         print(f"Local Config Path : {local_data.get('ini_path', 'Not Found')}")
         print(f"Database File Path: {local_data.get('db_path', 'Not Found')}")
+
+        verdict = "FAILED" if mismatch_found else "PASSED"
+        if mismatch_found:
+            print("=" * 76)
+            print(f"DISCREPANCY DETECTED: Visibility Mode mismatch between L1 ({l1_vis}) and L4 ({l4_vis})!")
+        print(f"FINAL VERDICT: {verdict}")
         print("=" * 76 + "\n")
+        return verdict
 
 
 def main():
