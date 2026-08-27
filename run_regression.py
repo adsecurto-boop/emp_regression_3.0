@@ -69,6 +69,7 @@ from src.utils.path_resolver import (
     discover_oju_directories,
 )
 from src.utils.network_auditor import NetworkAuditor
+from src.utils.sync_helper import fast_sync_agent_restart, prompt_conflict_resolution
 
 
 # ==============================================================================
@@ -202,7 +203,7 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
     """
     Executes Playwright Web Dashboard audit.
     Handles both Positive Path (user exists) and Negative/Failure Path (user missing/mismatch/empty).
-    Captures visual evidence to reports/evidence/.
+    Safely captures visual evidence to reports/evidence/.
     """
     if not base_url:
         from config.settings import BASE_URL
@@ -220,7 +221,8 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
         "user_found": False,
         "dashboard_email": None,
         "evidence_files": [],
-        "telemetry_summary": "No Data / Unregistered User"
+        "telemetry_summary": "No Data / Unregistered User",
+        "modules_status": {}
     }
 
     if not os.path.exists(auth_state_path):
@@ -358,9 +360,9 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                 logger.info(f"[L4 EXTRACTED] Dashboard Registered Email: {results['dashboard_email']}")
 
                 # -------------------------------------------------------------
-                # Full Telemetry Modules Visual Evidence Collection
+                # Full Telemetry Modules Visual Evidence Collection (Safe Click)
                 # -------------------------------------------------------------
-                logger.info("Capturing visual evidence across all 6 employee telemetry modules...")
+                logger.info("Capturing visual evidence across employee telemetry modules...")
 
                 telemetry_tabs = [
                     ("03_timesheets_module.png", "#Timesheets", "Timesheets Data Module"),
@@ -376,37 +378,47 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
                 screencast_status = "OFFLINE / FALLBACK"
                 for fname, href_key, label in telemetry_tabs:
                     try:
-                        logger.info(f"[Module Evidence] Capturing {label} ({fname})...")
                         tab_btn = page.locator(f"a[href*='{href_key}']").first
-                        if tab_btn.count() > 0:
-                            tab_btn.click()
+                        if tab_btn.count() > 0 and tab_btn.is_visible():
                             try:
-                                page.wait_for_load_state("networkidle", timeout=15000)
-                            except Exception:
-                                pass
-                            page.wait_for_timeout(3000)
+                                tab_btn.click(timeout=5000)
+                                try:
+                                    page.wait_for_load_state("networkidle", timeout=5000)
+                                except Exception:
+                                    pass
+                                page.wait_for_timeout(2500)
 
-                            if href_key == "#ScreenCast":
-                                live_canvas = page.locator("#canvas-img-0, canvas.screencast-canvas").first
-                                if live_canvas.count() > 0 and live_canvas.is_visible():
-                                    screencast_status = "LIVE / ONLINE"
-                                else:
-                                    screencast_status = "OFFLINE / FALLBACK"
-                                logger.info(f"[L4 TELEMETRY] Screencast Stream Status: {screencast_status}")
+                                if href_key == "#ScreenCast":
+                                    live_canvas = page.locator("#canvas-img-0, canvas.screencast-canvas").first
+                                    if live_canvas.count() > 0 and live_canvas.is_visible():
+                                        screencast_status = "LIVE / ONLINE"
+                                    else:
+                                        screencast_status = "OFFLINE / FALLBACK"
+                                    logger.info(f"[L4 TELEMETRY] Screencast Stream Status: {screencast_status}")
 
-                            try:
-                                page.keyboard.press("Escape")
-                            except Exception:
-                                pass
-                            img_path = EVIDENCE_DIR / fname
-                            page.screenshot(path=str(img_path), full_page=True, timeout=30000)
-                            results["evidence_files"].append(fname)
-                            logger.info(f"  -> Saved {fname}")
+                                try:
+                                    page.keyboard.press("Escape")
+                                except Exception:
+                                    pass
+                                img_path = EVIDENCE_DIR / fname
+                                page.screenshot(path=str(img_path), full_page=True, timeout=30000)
+                                results["evidence_files"].append(fname)
+                                results["modules_status"][label] = "CAPTURED"
+                                logger.info(f"  -> Saved {fname}")
+                            except Exception as click_err:
+                                logger.warning(f"Could not capture {label}: {click_err}")
+                                results["modules_status"][label] = f"CLICK_ERROR ({click_err})"
+                        elif tab_btn.count() > 0:
+                            logger.info(f"  -> {label} ({href_key}) is marked hidden/disabled on this dashboard profile. Skipping tab click.")
+                            results["modules_status"][label] = "HIDDEN / DISABLED ON DASHBOARD"
+                        else:
+                            results["modules_status"][label] = "TAB NOT PRESENT"
                     except Exception as e:
-                        logger.warning(f"Warning capturing {label}: {e}")
+                        logger.warning(f"Warning checking {label}: {e}")
+                        results["modules_status"][label] = f"ERROR ({e})"
 
                 results["screencast_status"] = screencast_status
-                results["telemetry_summary"] = f"User active on Web Dashboard (Email, Grid, 6 Telemetry Modules & Screencast [{screencast_status}] verified)."
+                results["telemetry_summary"] = f"User active on Web Dashboard (Email, Grid, Telemetry Modules & Screencast [{screencast_status}] verified)."
 
             else:
                 logger.warning(f"[L4 MISMATCH / FAILURE] Target user '{target_user}' NOT found in Employee Grid!")
@@ -442,7 +454,8 @@ def compile_unified_report(
     last_200_logs: List[str],
     l3_results: Dict[str, Any],
     l4_results: Dict[str, Any],
-    env_name: str = "dev"
+    env_name: str = "dev",
+    operator_overrides: Optional[List[str]] = None
 ) -> str:
     """
     Compares L1 host email with L4 dashboard email, evaluates L3 network/firewall audit,
@@ -455,7 +468,9 @@ def compile_unified_report(
     searched_user = l4_results.get("searched_user", "")
     user_found = l4_results.get("user_found", False)
 
-    verdict = "HEALTHY"
+    if not operator_overrides:
+        operator_overrides = []
+
     discrepancy_reasons = []
 
     # Layer 3 checks
@@ -468,28 +483,28 @@ def compile_unified_report(
             discrepancy_reasons.append(f"Network Routing Cross-Environment Leak: {mismatch}")
 
     if not user_found:
-        verdict = "FAILED"
         discrepancy_reasons.append(f"Searched dashboard user '{searched_user}' was NOT found in the Employee Details grid.")
 
     elif not host_email or host_email == "unknown":
-        verdict = "FAILED"
-        discrepancy_reasons.append("Local agent host email could not be extracted from empm.ini.")
+        if "host_email" not in [o.lower() for o in operator_overrides]:
+            discrepancy_reasons.append("Local agent host email could not be extracted from empm.ini.")
 
     elif host_email != dashboard_email:
-        verdict = "FAILED"
-        discrepancy_reasons.append(
-            f"Email Discrepancy Mismatch! Local Host Email ('{l1_l2_results.get('host_email')}') != Dashboard Email ('{l4_results.get('dashboard_email')}')"
-        )
+        if "email" not in [o.lower() for o in operator_overrides]:
+            discrepancy_reasons.append(
+                f"Email Discrepancy Mismatch! Local Host Email ('{l1_l2_results.get('host_email')}') != Dashboard Email ('{l4_results.get('dashboard_email')}')"
+            )
+
+    verdict = "FAILED" if discrepancy_reasons else ("HEALTHY (WITH OPERATOR OVERRIDES)" if operator_overrides else "HEALTHY")
 
     if discrepancy_reasons:
-        verdict = "FAILED"
         print("\n" + "!" * 76)
         logger.warning("[DISCREPANCY DETECTED] Non-ambiguous failure condition caught:")
         for reason in discrepancy_reasons:
             logger.warning(f"  -> {reason}")
         print("!" * 76 + "\n")
     else:
-        logger.info("[ALIGNED] Cross-Layer Email Match Validated! Final Verdict: HEALTHY")
+        logger.info(f"[ALIGNED] Final Verdict: {verdict}")
 
     # Generate Markdown Report Content
     report_path = REPORTS_DIR / "regression_report.md"
@@ -514,6 +529,15 @@ def compile_unified_report(
         f"- **Final System Verdict**: **`{verdict}`**",
         ""
     ]
+
+    if operator_overrides:
+        md_lines.extend([
+            "### ℹ️ Operator Overrides / Tolerated Conflicts",
+            ""
+        ])
+        for o in operator_overrides:
+            md_lines.append(f"- 🟡 **[TOLERATED CONFLICT]**: {o}")
+        md_lines.append("")
 
     if discrepancy_reasons:
         md_lines.extend([
@@ -666,12 +690,46 @@ def main():
     # Step 3: Playwright Web Dashboard Audit (L4)
     l4_results = audit_web_dashboard(target_user_input, base_url=base_url)
 
-    # Step 4: Cross-Layer Alignment & Report Compilation
-    final_verdict = compile_unified_report(l1_l2_results, last_200_logs, l3_results, l4_results, env_name=env_name)
+    # Step 4: Fast-Sync Check & Conflict Reconciliation
+    operator_overrides = []
+    host_email = l1_l2_results.get("host_email", "").strip().lower()
+    dashboard_email = (l4_results.get("dashboard_email") or "").strip().lower()
+
+    if host_email and dashboard_email and host_email != dashboard_email:
+        print("\n[Fast-Sync Check] Detected potential email mismatch between local empm.ini and Web Dashboard.")
+        print("Restarting agent process to trigger immediate configuration refresh (/api/v3/user/config)...")
+        restarted = fast_sync_agent_restart(target_procs, wait_seconds=5)
+        
+        if restarted:
+            print("[Fast-Sync Re-Inspection] Re-parsing refreshed empm.ini...")
+            l1_l2_results, last_200_logs = inspect_local_system(version_input)
+            host_email = l1_l2_results.get("host_email", "").strip().lower()
+
+        if host_email and dashboard_email and host_email != dashboard_email:
+            should_skip, note = prompt_conflict_resolution(
+                feature_name="Registered Email",
+                local_val=l1_l2_results.get("host_email", "Unknown"),
+                web_val=l4_results.get("dashboard_email", "Unknown"),
+                context_note="Different user accounts or multi-user test environment."
+            )
+            if should_skip:
+                operator_overrides.append(f"Email Mismatch: {note}")
+
+    # Step 5: Cross-Layer Alignment & Report Compilation
+    final_verdict = compile_unified_report(
+        l1_l2_results,
+        last_200_logs,
+        l3_results,
+        l4_results,
+        env_name=env_name,
+        operator_overrides=operator_overrides
+    )
 
     print("\n" + "=" * 76)
     print(f"FINAL SYSTEM VERDICT: {final_verdict}")
-    print(f"Report Location: {REPORTS_DIR / 'regression_report.md'}")
+    if operator_overrides:
+        print(f"OPERATOR OVERRIDES:   {len(operator_overrides)} setting check(s) tolerated")
+    print(f"Report Location:      {REPORTS_DIR / 'regression_report.md'}")
     print("=" * 76 + "\n")
 
 

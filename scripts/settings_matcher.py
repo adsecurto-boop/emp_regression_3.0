@@ -1,7 +1,7 @@
 """
 Module: settings_matcher.py
 Purpose: Automates side-by-side comparison of local agent telemetry settings (L1) 
-         and web dashboard settings (L4) for EmpMonitor regression validation.
+         and web dashboard settings (L4) with Fast-Sync Agent restart and conflict reconciliation.
 Evidence Mapping: EV-001 (Config Parsing & Masking), EV-013 / EV-015 (Web Settings Alignment)
 """
 
@@ -12,7 +12,7 @@ import json
 import logging
 import configparser
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 
 from playwright.sync_api import sync_playwright
 
@@ -23,7 +23,6 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger("SettingsMatcher")
-
 
 # Ensure project root is in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -36,6 +35,7 @@ from src.utils.path_resolver import (
     find_screen_dirs,
     discover_oju_directories,
 )
+from src.utils.sync_helper import fast_sync_agent_restart, prompt_conflict_resolution
 
 
 def mask_sensitive_value(key: str, value: str) -> str:
@@ -93,6 +93,7 @@ class LocalConfigParser:
             "screenshots": "Unknown",
             "keystrokes": "Unknown",
             "screen_record": "Unknown",
+            "visibility_mode": "Unknown",
             "stealth_mode": "Unknown",
             "ini_path": str(self.ini_path) if self.ini_path else "Not Found",
             "db_path": str(self.db_path) if self.db_path else "Not Found",
@@ -190,7 +191,7 @@ class WebDashboardSettingsExtractor:
     def __init__(self, auth_state_path: str = "playwright-profile/auth.json"):
         self.auth_state_path = auth_state_path
 
-    def extract_dashboard_settings(self, headless: bool = True) -> Dict[str, Any]:
+    def extract_dashboard_settings(self, headless: bool = True, target_user: str = "auto test") -> Dict[str, Any]:
         """
         Launches browser, logs in if necessary, navigates to user settings panel,
         and extracts current tracking configuration.
@@ -238,7 +239,7 @@ class WebDashboardSettingsExtractor:
                 from src.pages.settings_page import SettingsPage
                 settings_page = SettingsPage(page)
                 target_user_id = "237232" if ("app.empmonitor.com" in BASE_URL and "dev" not in BASE_URL) else "45009"
-                settings_page.navigate_to_user_settings(user_name="auto test", user_id=target_user_id)
+                settings_page.navigate_to_user_settings(user_name=target_user, user_id=target_user_id)
 
                 # Extract Email (hardcoded or extracted from detail page)
                 web_results["email"] = "autotest@gmail.com"
@@ -310,12 +311,21 @@ class WebDashboardSettingsExtractor:
 
 class SettingsComparator:
     """
-    Renders formatted CLI comparison table between Local Agent (L1) and Web Dashboard (L4).
+    Renders formatted CLI comparison table between Local Agent (L1) and Web Dashboard (L4),
+    with Fast-Sync Agent process restart and interactive conflict resolution.
     """
 
     @staticmethod
-    def display_comparison(local_data: Dict[str, Any], web_data: Dict[str, Any]) -> str:
-        """Prints a clean side-by-side comparison table and evaluates alignment verdict."""
+    def display_comparison(
+        local_data: Dict[str, Any],
+        web_data: Dict[str, Any],
+        local_parser: Optional[LocalConfigParser] = None,
+        target_procs: Optional[List[str]] = None
+    ) -> str:
+        """
+        Prints side-by-side comparison table, attempts Fast-Sync agent restart if conflict detected,
+        and provides interactive operator reconciliation.
+        """
         print("\n" + "=" * 76)
         print(f"{'EMPMONITOR SETTINGS COMPARISON':^76}")
         print("=" * 76)
@@ -336,12 +346,16 @@ class SettingsComparator:
             ("Application Blocklist", local_data.get("app_blocklist", "N/A"), web_data.get("app_blocklist", "N/A")),
         ]
 
-        mismatch_found = False
+        mismatches = []
         for feature, l1_val, l4_val in features:
             status_flag = ""
             if feature == "Visibility Mode":
                 if l1_val != "Unknown" and l4_val != "Unknown" and l1_val.lower() != l4_val.lower():
-                    mismatch_found = True
+                    mismatches.append((feature, l1_val, l4_val))
+                    status_flag = " [MISMATCH]"
+            elif feature == "Screen Recording":
+                if l1_val != "Unknown" and l4_val != "Unknown" and l1_val.lower() != l4_val.lower():
+                    mismatches.append((feature, l1_val, l4_val))
                     status_flag = " [MISMATCH]"
             print(f"{feature:<20} | {l1_val:<25} | {l4_val + status_flag:<25}")
 
@@ -349,10 +363,49 @@ class SettingsComparator:
         print(f"Local Config Path : {local_data.get('ini_path', 'Not Found')}")
         print(f"Database File Path: {local_data.get('db_path', 'Not Found')}")
 
-        verdict = "FAILED" if mismatch_found else "PASSED"
-        if mismatch_found:
-            print("=" * 76)
-            print(f"DISCREPANCY DETECTED: Visibility Mode mismatch between L1 ({l1_vis}) and L4 ({l4_vis})!")
+        # If mismatch found, trigger Fast-Sync Agent End-Task and re-read empm.ini
+        if mismatches and local_parser:
+            print("\n[Fast-Sync Trigger] Detected setting mismatch between empm.ini and Web Dashboard.")
+            print("Restarting agent process to force instant API config pull (/api/v3/user/config)...")
+            restarted = fast_sync_agent_restart(process_names=target_procs, wait_seconds=5)
+            
+            if restarted:
+                print("[Fast-Sync Re-check] Re-parsing refreshed empm.ini...")
+                new_local_data = local_parser.parse_empm_ini()
+                new_l1_vis = new_local_data.get("visibility_mode", "Unknown")
+                
+                # Check if resolved
+                remaining_mismatches = []
+                for feat, old_l1, w_val in mismatches:
+                    curr_l1 = new_local_data.get("visibility_mode" if feat == "Visibility Mode" else "screen_record", old_l1)
+                    if curr_l1.lower() != w_val.lower():
+                        remaining_mismatches.append((feat, curr_l1, w_val))
+                
+                if not remaining_mismatches:
+                    print(">>> [FAST-SYNC SUCCESS] All settings conflicts resolved after agent process refresh!")
+                    mismatches = []
+                    local_data.update(new_local_data)
+                else:
+                    mismatches = remaining_mismatches
+
+        # If conflicts still remain, interactively prompt the user to decide
+        overridden_count = 0
+        if mismatches:
+            for feat, l1_v, w_v in mismatches:
+                note = "Note: Different APIs hit on 3-min intervals, or this agent build may not support this feature."
+                should_skip, resolution_status = prompt_conflict_resolution(feat, l1_v, w_v, context_note=note)
+                if should_skip:
+                    overridden_count += 1
+                    logger.info(f"Setting '{feat}' conflict skipped/overridden by operator ({resolution_status}).")
+
+        if len(mismatches) == 0:
+            verdict = "PASSED"
+        elif overridden_count == len(mismatches):
+            verdict = "PASSED (WITH OPERATOR OVERRIDES)"
+        else:
+            verdict = "FAILED"
+
+        print("\n" + "=" * 76)
         print(f"FINAL VERDICT: {verdict}")
         print("=" * 76 + "\n")
         return verdict
@@ -376,7 +429,7 @@ def main():
     local_parser = LocalConfigParser()
     logger.info("--- Step 1: Local Agent Configuration Parsing (L1) ---")
     config_js_summary = local_parser.parse_config_js()
-    logger.info(f"config.js Parsed & Masked Successfully.")
+    logger.info("config.js Parsed & Masked Successfully.")
     
     local_data = local_parser.parse_empm_ini()
     logger.info(f"empm.ini Parsed ({local_data['ini_size_kb']} KB). Host Email: {local_data['email']}")
@@ -387,9 +440,9 @@ def main():
     web_data = extractor.extract_dashboard_settings(headless=True)
     logger.info(f"Web Settings Extracted. Target Email: {web_data['email']}")
 
-    # Step 3: Present Side-by-Side Comparison
+    # Step 3: Present Side-by-Side Comparison with Fast-Sync
     logger.info("--- Step 3: Rendering Side-by-Side Comparison Table ---")
-    SettingsComparator.display_comparison(local_data, web_data)
+    SettingsComparator.display_comparison(local_data, web_data, local_parser=local_parser)
 
 
 if __name__ == "__main__":

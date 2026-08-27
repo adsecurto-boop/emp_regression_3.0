@@ -70,6 +70,7 @@ from src.utils.path_resolver import (
 )
 from src.pages.settings_page import SettingsPage
 from src.utils.network_auditor import NetworkAuditor
+from src.utils.sync_helper import fast_sync_agent_restart, prompt_conflict_resolution
 
 
 # ==============================================================================
@@ -594,7 +595,7 @@ def audit_custom_web_dashboard(
                         page.wait_for_timeout(2000)
 
                 # -------------------------------------------------------------
-                # Capture Telemetry Modules Visual Evidence
+                # Capture Telemetry Modules Visual Evidence (Safe Check)
                 # -------------------------------------------------------------
                 logger.info("Auditing visual evidence across telemetry modules...")
                 telemetry_tabs = [
@@ -612,35 +613,42 @@ def audit_custom_web_dashboard(
                 for fname, href_key, label in telemetry_tabs:
                     try:
                         tab_btn = page.locator(f"a[href*='{href_key}']").first
-                        if tab_btn.count() > 0:
-                            tab_btn.click()
+                        if tab_btn.count() > 0 and tab_btn.is_visible():
                             try:
-                                page.wait_for_load_state("networkidle", timeout=15000)
-                            except Exception:
-                                pass
-                            page.wait_for_timeout(2500)
+                                tab_btn.click(timeout=5000)
+                                try:
+                                    page.wait_for_load_state("networkidle", timeout=5000)
+                                except Exception:
+                                    pass
+                                page.wait_for_timeout(2500)
 
-                            if href_key == "#ScreenCast":
-                                live_canvas = page.locator("#canvas-img-0, canvas.screencast-canvas").first
-                                if live_canvas.count() > 0 and live_canvas.is_visible():
-                                    screencast_status = "LIVE / ONLINE"
-                                else:
-                                    screencast_status = "OFFLINE / FALLBACK"
-                                logger.info(f"[L4 TELEMETRY] Screencast Stream Status: {screencast_status}")
+                                if href_key == "#ScreenCast":
+                                    live_canvas = page.locator("#canvas-img-0, canvas.screencast-canvas").first
+                                    if live_canvas.count() > 0 and live_canvas.is_visible():
+                                        screencast_status = "LIVE / ONLINE"
+                                    else:
+                                        screencast_status = "OFFLINE / FALLBACK"
+                                    logger.info(f"[L4 TELEMETRY] Screencast Stream Status: {screencast_status}")
 
-                            try:
-                                page.keyboard.press("Escape")
-                            except Exception:
-                                pass
-                            img_path = EVIDENCE_DIR / fname
-                            page.screenshot(path=str(img_path), full_page=True, timeout=30000)
-                            results["evidence_files"].append(fname)
-                            results["modules_status"][label] = "CAPTURED"
-                            logger.info(f"  -> Captured {label} ({fname})")
+                                try:
+                                    page.keyboard.press("Escape")
+                                except Exception:
+                                    pass
+                                img_path = EVIDENCE_DIR / fname
+                                page.screenshot(path=str(img_path), full_page=True, timeout=30000)
+                                results["evidence_files"].append(fname)
+                                results["modules_status"][label] = "CAPTURED"
+                                logger.info(f"  -> Captured {label} ({fname})")
+                            except Exception as click_err:
+                                logger.warning(f"Could not capture {label}: {click_err}")
+                                results["modules_status"][label] = f"CLICK_ERROR ({click_err})"
+                        elif tab_btn.count() > 0:
+                            logger.info(f"  -> {label} ({href_key}) is marked hidden/disabled on this dashboard profile. Skipping tab click.")
+                            results["modules_status"][label] = "HIDDEN / DISABLED ON DASHBOARD"
                         else:
                             results["modules_status"][label] = "TAB NOT PRESENT"
                     except Exception as e:
-                        logger.warning(f"Warning capturing {label}: {e}")
+                        logger.warning(f"Warning checking {label}: {e}")
                         results["modules_status"][label] = f"ERROR ({e})"
 
                 results["screencast_status"] = screencast_status
@@ -687,7 +695,8 @@ def compile_custom_markdown_report(
     last_200_logs: List[str],
     l3_results: Dict[str, Any],
     l4_results: Dict[str, Any],
-    expected_stealth: bool = True
+    expected_stealth: bool = True,
+    operator_overrides: Optional[List[str]] = None
 ) -> Tuple[str, str]:
     """
     Compiles structured diagnostic markdown report at reports/custom_regression_report.md
@@ -707,6 +716,9 @@ def compile_custom_markdown_report(
     searched_user = l4_results.get("searched_user", "")
     user_found = l4_results.get("user_found", False)
     dash_vis_mode = l4_results.get("dashboard_visibility_mode", "Unknown")
+
+    if not operator_overrides:
+        operator_overrides = []
 
     # Determine Cloaking Verdict
     if is_stealth_secure:
@@ -736,16 +748,18 @@ def compile_custom_markdown_report(
         )
 
     if expected_stealth and dash_vis_mode.lower() != "stealth":
-        discrepancy_reasons.append(
-            f"Dashboard Visibility Setting Mismatch! Expected 'Stealth', but active mode is '{dash_vis_mode}'."
-        )
+        if "visibility_mode" not in [o.lower() for o in operator_overrides]:
+            discrepancy_reasons.append(
+                f"Dashboard Visibility Setting Mismatch! Expected 'Stealth', but active mode is '{dash_vis_mode}'."
+            )
 
     if host_email and host_email != "unknown" and dashboard_email and host_email != dashboard_email:
-        discrepancy_reasons.append(
-            f"Email Discrepancy Mismatch! Local Host Email ('{l1_l2_results.get('host_email')}') != Dashboard Email ('{l4_results.get('dashboard_email')}')"
-        )
+        if "email" not in [o.lower() for o in operator_overrides]:
+            discrepancy_reasons.append(
+                f"Email Discrepancy Mismatch! Local Host Email ('{l1_l2_results.get('host_email')}') != Dashboard Email ('{l4_results.get('dashboard_email')}')"
+            )
 
-    report_verdict = "FAILED" if discrepancy_reasons else "HEALTHY"
+    report_verdict = "FAILED" if discrepancy_reasons else ("HEALTHY (WITH OPERATOR OVERRIDES)" if operator_overrides else "HEALTHY")
 
     report_path = REPORTS_DIR / "custom_regression_report.md"
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -766,15 +780,24 @@ def compile_custom_markdown_report(
         "",
         "| Audit Dimension | Evaluation Result | Status |",
         "| :--- | :--- | :--- |",
-        f"| **Final Report Verdict** | **`{report_verdict}`** | {'✅ PASS' if report_verdict == 'HEALTHY' else '❌ FAIL'} |",
+        f"| **Final Report Verdict** | **`{report_verdict}`** | {'✅ PASS' if 'HEALTHY' in report_verdict else '❌ FAIL'} |",
         f"| **Covert Cloaking Verdict** | **`{cloaking_verdict}`** | {'🛡️ SECURE' if is_stealth_secure else '🚨 BREACHED'} |",
         f"| **Cross-Environment Leak Check** | `{leak_status}` ({leak_summary}) | {'🛡️ CLEAN' if leak_status == 'CLEAN' else '🚨 LEAK DETECTED'} |",
-        f"| **Dashboard Visibility Setting** | `{dash_vis_mode}` (Expected: {'Stealth' if expected_stealth else 'Visible'}) | {'✅ ALIGNED' if l4_results.get('visibility_mode_match') else '⚠️ MISMATCH'} |",
+        f"| **Dashboard Visibility Setting** | `{dash_vis_mode}` (Expected: {'Stealth' if expected_stealth else 'Visible'}) | {'✅ ALIGNED' if l4_results.get('visibility_mode_match') else ('⚠️ OPERATOR OVERRIDE' if 'visibility_mode' in [o.lower() for o in operator_overrides] else '⚠️ MISMATCH')} |",
         f"| **Target Dashboard User** | `{searched_user}` | {'✅ FOUND' if user_found else '❌ NOT FOUND'} |",
         f"| **Host INI Visibility Flag** | `{l1_l2_results.get('visibility_verdict')}` | {'✅ ALIGNED' if 'VERIFIED' in l1_l2_results.get('visibility_verdict', '') else '⚠️ AUDIT'} |",
         f"| **Screencast Stream Status** | `{l4_results.get('screencast_status', 'N/A')}` | {'🟢 LIVE' if 'LIVE' in l4_results.get('screencast_status', '') else '⚪ STANDBY'} |",
         ""
     ]
+
+    if operator_overrides:
+        md_lines.extend([
+            "### ℹ️ Operator Overrides / Tolerated Conflicts",
+            ""
+        ])
+        for o in operator_overrides:
+            md_lines.append(f"- 🟡 **[TOLERATED CONFLICT]**: {o}")
+        md_lines.append("")
 
     if discrepancy_reasons:
         md_lines.extend([
@@ -1031,7 +1054,51 @@ def main():
         expected_stealth=True
     )
 
-    # Step 5: Markdown Report Generation
+    # Step 5: Fast-Sync Check & Setting Conflict Reconciliation
+    operator_overrides = []
+    host_email = l1_l2_results.get("host_email", "").strip().lower()
+    dashboard_email = (l4_results.get("dashboard_email") or "").strip().lower()
+    vis_match = l4_results.get("visibility_mode_match", False)
+
+    if not vis_match or (host_email and dashboard_email and host_email != dashboard_email):
+        print("\n[Fast-Sync Check] Detected potential setting discrepancy between local empm.ini and Web Dashboard.")
+        print("Restarting agent process to trigger immediate configuration refresh (/api/v3/user/config)...")
+        restarted = fast_sync_agent_restart(custom_names_list, wait_seconds=5)
+        
+        if restarted:
+            print("[Fast-Sync Re-Inspection] Re-parsing refreshed empm.ini...")
+            l1_l2_results, last_200_logs = inspect_custom_host_system(
+                version_input=version_input,
+                exe_map=exe_map,
+                expected_stealth=True
+            )
+            host_email = l1_l2_results.get("host_email", "").strip().lower()
+            if "STEALTH VERIFIED" in l1_l2_results.get("visibility_verdict", ""):
+                l4_results["visibility_mode_match"] = True
+                print(">>> [FAST-SYNC SUCCESS] Visibility setting aligned after agent restart!")
+
+        # If mismatch still persists, prompt operator
+        if not l4_results.get("visibility_mode_match", False):
+            should_skip, note = prompt_conflict_resolution(
+                feature_name="Visibility Mode (Stealth vs Visible)",
+                local_val=l1_l2_results.get("visibility_verdict", "Unknown"),
+                web_val=l4_results.get("dashboard_visibility_mode", "Unknown"),
+                context_note="Agent build might not have updated or may use custom policy."
+            )
+            if should_skip:
+                operator_overrides.append(f"Visibility Mode: {note}")
+
+        if host_email and dashboard_email and host_email != dashboard_email:
+            should_skip, note = prompt_conflict_resolution(
+                feature_name="Registered Email",
+                local_val=l1_l2_results.get("host_email", "Unknown"),
+                web_val=l4_results.get("dashboard_email", "Unknown"),
+                context_note="Different user accounts or multi-user test environment."
+            )
+            if should_skip:
+                operator_overrides.append(f"Email Mismatch: {note}")
+
+    # Step 6: Markdown Report Generation
     report_verdict, cloaking_verdict = compile_custom_markdown_report(
         env_name=env_name,
         base_url=base_url,
@@ -1042,13 +1109,16 @@ def main():
         last_200_logs=last_200_logs,
         l3_results=l3_results,
         l4_results=l4_results,
-        expected_stealth=True
+        expected_stealth=True,
+        operator_overrides=operator_overrides
     )
 
     print("\n" + "=" * 78)
     print(f"FINAL REPORT VERDICT:    {report_verdict}")
     print(f"COVERT CLOAKING VERDICT: {cloaking_verdict}")
     print(f"NETWORK LEAK INTEGRITY:  {l3_results.get('leak_audit', {}).get('leak_status')}")
+    if operator_overrides:
+        print(f"OPERATOR OVERRIDES:      {len(operator_overrides)} setting check(s) tolerated")
     print(f"Report Output Location:  {REPORTS_DIR / 'custom_regression_report.md'}")
     print("=" * 78 + "\n")
 
