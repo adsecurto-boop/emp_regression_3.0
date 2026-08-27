@@ -1,7 +1,7 @@
 """
 Module: run_regression.py
 Purpose: Interactive CLI entry point & cross-layer regression orchestrator for EmpMonitor 3.0.
-Evidence Mapping: L1 (Configuration), L2 (Host Storage & Runtime), L4 (Web Dashboard Alignment)
+Evidence Mapping: L1 (Configuration), L2 (Host Storage & Runtime), L3 (Network/Firewall), L4 (Web Dashboard Alignment)
 """
 
 import os
@@ -68,6 +68,8 @@ from src.utils.path_resolver import (
     find_screen_dirs,
     discover_oju_directories,
 )
+from src.utils.network_auditor import NetworkAuditor
+
 
 # ==============================================================================
 # STEP 1 & 2: Local System Inspection (L1 & L2)
@@ -112,12 +114,13 @@ def inspect_local_system(version_input: str) -> Tuple[Dict[str, Any], List[str]]
 
     # Parse config.js
     config_js_path = Path(r"C:\Program Files\EmpMonitor\EmpMonitor\gui\configs\config.js")
+    config_js_raw = ""
     config_js_masked = "Not Found"
     if config_js_path.exists():
         try:
-            raw_js = config_js_path.read_text(encoding="utf-8", errors="ignore")
+            config_js_raw = config_js_path.read_text(encoding="utf-8", errors="ignore")
             masked_lines = []
-            for line in raw_js.splitlines():
+            for line in config_js_raw.splitlines():
                 if any(k in line.lower() for k in ["token", "password", "key", "secret"]):
                     line = re.sub(r'([\'"][^\'"]*[\'"])\s*:\s*([\'"][^\'"]*[\'"])', r'\1: "***MASKED***"', line)
                 masked_lines.append(line)
@@ -133,6 +136,7 @@ def inspect_local_system(version_input: str) -> Tuple[Dict[str, Any], List[str]]
     ini_path, ini_size_kb = resolve_empm_ini()
     host_email = None
     ini_path_str = str(ini_path) if ini_path else "Not Found"
+    ini_content_raw = ""
     ini_attributes = {}
 
     if ini_path and ini_path.exists():
@@ -143,12 +147,12 @@ def inspect_local_system(version_input: str) -> Tuple[Dict[str, Any], List[str]]
             logger.warning(f"[EV-001 WARNING] empm.ini file size ({ini_size_kb} KB) is <= 3 KB.")
 
         try:
-            content = ini_path.read_text(encoding="utf-8", errors="ignore")
+            ini_content_raw = ini_path.read_text(encoding="utf-8", errors="ignore")
             config = configparser.ConfigParser(interpolation=None, strict=False, allow_no_value=True)
             try:
-                config.read_string(content)
+                config.read_string(ini_content_raw)
             except Exception:
-                config.read_string("[DEFAULT]\n" + content)
+                config.read_string("[DEFAULT]\n" + ini_content_raw)
 
             for section in config.sections():
                 for key, val in config.items(section):
@@ -158,7 +162,7 @@ def inspect_local_system(version_input: str) -> Tuple[Dict[str, Any], List[str]]
                     ini_attributes[key] = masked_val
 
             if not host_email:
-                email_match = re.search(r"email\s*=\s*([^\s\r\n]+)", content, re.IGNORECASE)
+                email_match = re.search(r"email\s*=\s*([^\s\r\n]+)", ini_content_raw, re.IGNORECASE)
                 if email_match:
                     host_email = email_match.group(1)
         except Exception as e:
@@ -179,9 +183,11 @@ def inspect_local_system(version_input: str) -> Tuple[Dict[str, Any], List[str]]
         "agent_version": version_input,
         "binaries": binary_statuses,
         "processes": process_statuses,
+        "config_js_raw": config_js_raw,
         "config_js": config_js_masked,
         "ini_path": ini_path_str,
         "ini_size_kb": ini_size_kb,
+        "ini_content_raw": ini_content_raw,
         "host_email": host_email or "Unknown",
         "ini_attributes": ini_attributes,
     }
@@ -431,10 +437,16 @@ def audit_web_dashboard(target_user: str, auth_state_path: str = "playwright-pro
 # ==============================================================================
 # STEP 4: Report Compilation & Verdict Determination
 # ==============================================================================
-def compile_unified_report(l1_l2_results: Dict[str, Any], last_200_logs: List[str], l4_results: Dict[str, Any]) -> str:
+def compile_unified_report(
+    l1_l2_results: Dict[str, Any],
+    last_200_logs: List[str],
+    l3_results: Dict[str, Any],
+    l4_results: Dict[str, Any],
+    env_name: str = "dev"
+) -> str:
     """
-    Compares L1 host email with L4 dashboard email, determines final verdict (HEALTHY / FAILED),
-    and builds reports/regression_report.md.
+    Compares L1 host email with L4 dashboard email, evaluates L3 network/firewall audit,
+    determines final verdict (HEALTHY / FAILED), and builds reports/regression_report.md.
     """
     logger.info("=== STEP 4: Cross-Layer Alignment & Report Compilation ===")
 
@@ -445,6 +457,15 @@ def compile_unified_report(l1_l2_results: Dict[str, Any], last_200_logs: List[st
 
     verdict = "HEALTHY"
     discrepancy_reasons = []
+
+    # Layer 3 checks
+    if l3_results.get("has_tcp_failures"):
+        blocked = [k for k, v in l3_results.get("tcp_connectivity", {}).items() if v.get("status") == "BLOCKED"]
+        discrepancy_reasons.append(f"Network Connectivity Blocked: TCP handshake failed for {', '.join(blocked)}")
+
+    if not l3_results.get("leak_audit", {}).get("is_clean", True):
+        for mismatch in l3_results.get("leak_audit", {}).get("mismatches", []):
+            discrepancy_reasons.append(f"Network Routing Cross-Environment Leak: {mismatch}")
 
     if not user_found:
         verdict = "FAILED"
@@ -460,7 +481,8 @@ def compile_unified_report(l1_l2_results: Dict[str, Any], last_200_logs: List[st
             f"Email Discrepancy Mismatch! Local Host Email ('{l1_l2_results.get('host_email')}') != Dashboard Email ('{l4_results.get('dashboard_email')}')"
         )
 
-    if verdict == "FAILED":
+    if discrepancy_reasons:
+        verdict = "FAILED"
         print("\n" + "!" * 76)
         logger.warning("[DISCREPANCY DETECTED] Non-ambiguous failure condition caught:")
         for reason in discrepancy_reasons:
@@ -473,16 +495,21 @@ def compile_unified_report(l1_l2_results: Dict[str, Any], last_200_logs: List[st
     report_path = REPORTS_DIR / "regression_report.md"
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    leak_status = l3_results.get("leak_audit", {}).get("leak_status", "CLEAN")
+    leak_summary = l3_results.get("leak_audit", {}).get("leak_summary", "No leaks")
+
     md_lines = [
         "# EmpMonitor 3.0 Automated Regression Test Report",
         "",
         "## 1. Execution Metadata Summary",
         "",
         f"- **Date & Time**: `{now_str}`",
+        f"- **Target Environment**: `{env_name.upper()}`",
         f"- **Agent Version Evaluated**: `{l1_l2_results['agent_version']}`",
         f"- **Local Active Host Email (L1)**: `{l1_l2_results['host_email']}`",
         f"- **Searched Dashboard User (L4)**: `{searched_user}`",
         f"- **Dashboard Registered Email (L4)**: `{l4_results['dashboard_email'] or 'N/A'}`",
+        f"- **Cross-Environment Leak Check**: `{leak_status}` ({leak_summary})",
         f"- **Screencast Stream Status (L4)**: `{l4_results.get('screencast_status', 'N/A')}`",
         f"- **Final System Verdict**: **`{verdict}`**",
         ""
@@ -531,7 +558,32 @@ def compile_unified_report(l1_l2_results: Dict[str, Any], last_200_logs: List[st
         "",
         "---",
         "",
-        "## 3. Layer 2 Host Log Harvest (Last 200 Lines)",
+        "## 3. Layer 3 (L3) - Outbound Network & Firewall Audit",
+        "",
+        f"- **Target Routing Environment:** `{env_name}`",
+        "- **Active Firewall Exceptions:**"
+    ])
+
+    for exe, fw_info in l3_results.get("firewall_status", {}).items():
+        disp = fw_info.get("display_text", "Allowed")
+        md_lines.append(f"  - `{exe}`: `{disp}`")
+
+    md_lines.extend([
+        "- **API Connectivity Matrix:**"
+    ])
+
+    for domain, conn in l3_results.get("tcp_connectivity", {}).items():
+        if conn.get("status") == "HEALTHY":
+            md_lines.append(f"  - `{domain}`: `SUCCESS (Resolved IP: {conn.get('resolved_ip')})`")
+        else:
+            md_lines.append(f"  - `{domain}`: `BLOCKED ({conn.get('error')})`")
+
+    md_lines.extend([
+        f"- **Leak Integrity check:** `{leak_status} ({leak_summary})`",
+        "",
+        "---",
+        "",
+        "## 4. Layer 2 Host Log Harvest (Last 200 Lines)",
         "",
         "```text"
     ])
@@ -544,7 +596,7 @@ def compile_unified_report(l1_l2_results: Dict[str, Any], last_200_logs: List[st
         "",
         "---",
         "",
-        "## 4. Layer 4 Visual Evidence Artifacts",
+        "## 5. Layer 4 Visual Evidence Artifacts",
         ""
     ])
 
@@ -595,14 +647,27 @@ def main():
     print("\n" + "-" * 76)
     logger.info(f"Target Configuration: Environment='{env_name.upper()}' ({target_login_url}), Version='{version_input}', Search User='{target_user_input}'")
 
-    # Step 1 & 2: Local System Inspection
+    # Step 1: Local System Inspection (L1 & L2)
     l1_l2_results, last_200_logs = inspect_local_system(version_input)
 
-    # Step 3: Playwright Web Dashboard Audit
+    # Step 2: Layer 3 Outbound Network & Windows Defender Firewall Audit
+    target_procs = ["empmonitor.exe", "UpdateMgr_Emp.exe", "esr.exe", "emp_psa_service.exe"]
+    network_auditor = NetworkAuditor(environment=env_name, exe_list=target_procs)
+    l3_results = network_auditor.run_full_audit(
+        config_js_content=l1_l2_results.get("config_js_raw", ""),
+        ini_content=l1_l2_results.get("ini_content_raw", "")
+    )
+
+    if l3_results.get("has_tcp_failures"):
+        logger.warning("[L3 WARNING] One or more target endpoints failed TCP handshake!")
+    if not l3_results.get("leak_audit", {}).get("is_clean", True):
+        logger.warning(f"[L3 CRITICAL] {l3_results.get('leak_audit', {}).get('leak_summary')}")
+
+    # Step 3: Playwright Web Dashboard Audit (L4)
     l4_results = audit_web_dashboard(target_user_input, base_url=base_url)
 
     # Step 4: Cross-Layer Alignment & Report Compilation
-    final_verdict = compile_unified_report(l1_l2_results, last_200_logs, l4_results)
+    final_verdict = compile_unified_report(l1_l2_results, last_200_logs, l3_results, l4_results, env_name=env_name)
 
     print("\n" + "=" * 76)
     print(f"FINAL SYSTEM VERDICT: {final_verdict}")

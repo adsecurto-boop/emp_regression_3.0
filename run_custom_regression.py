@@ -1,11 +1,11 @@
 """
 Module: run_custom_regression.py
-Purpose: Interactive Custom Agent Regression Orchestrator, Windows Registry Stealth Auditor & L3 Network Routing Validator.
+Purpose: Interactive Custom Agent Regression Orchestrator, Windows Registry Stealth Auditor & L3 Network/Firewall Validator.
 Branch: custom-agent-regression
 Evidence Mapping: 
   - L1: Windows Registry Control Panel Stealth Scan & Host Configuration (empm.ini)
   - L2: Custom Process & Binary Runtime Inspection
-  - L3: Telemetry & API Network Routing Verification (Live vs. Dev Isolation)
+  - L3: Outbound Network Connectivity & Windows Firewall Audit
   - L4: Playwright Web Dashboard User Alignment & Tracking Settings Audit
 """
 
@@ -69,6 +69,7 @@ from src.utils.path_resolver import (
     discover_oju_directories,
 )
 from src.pages.settings_page import SettingsPage
+from src.utils.network_auditor import NetworkAuditor
 
 
 # ==============================================================================
@@ -429,159 +430,6 @@ def inspect_custom_host_system(
 
 
 # ==============================================================================
-# LAYER 3: Telemetry & API Network Routing Verification (L3)
-# ==============================================================================
-def verify_agent_network_routing(
-    environment: str,
-    config_js_content: str,
-    ini_content: Optional[str] = None
-) -> Dict[str, Any]:
-    """
-    Validates that the local configuration endpoints map correctly to the 
-    user-selected environment, preventing cross-environment leakage.
-    Evidence Mapping: EV-001 (L1 Config) -> Layer 3 Network Routing -> EV-015 (L4 Policy)
-    """
-    environment = environment.strip().lower()
-    if environment in ["1", "dev", "development"]:
-        env_key = "dev"
-    else:
-        env_key = "live"
-
-    validation_results: Dict[str, Any] = {
-        "is_valid": True,
-        "environment": env_key,
-        "mismatches": [],
-        "leak_status": "CLEAN",
-        "leak_summary": "No cross-environment leakage detected",
-        "routes": {}
-    }
-
-    # 1. Define expected patterns based on Live vs. Dev API Mapping Matrix
-    expected_endpoints = {
-        "live": {
-            "auth": "https://track.empmonitor.com/api/v3",
-            "auth_domain": "track.empmonitor.com",
-            "storelogs": "https://storelogs.dev.empmonitor.com/api/v1",
-            "storelogs_domain": "storelogs.dev.empmonitor.com",
-            "screencast": ["remote.empmonitor.com", "realtime.empmonitor.com"],
-            "service": "service.empmonitor.com",
-            "updates": "https://updates.empmonitor.in/",
-            "updates_domain": "updates.empmonitor.in"
-        },
-        "dev": {
-            "auth": "https://track.dev.empmonitor.com/api/v3",
-            "auth_domain": "track.dev.empmonitor.com",
-            "storelogs": "https://activity.dev.emmonitor.com/api/v1",
-            "storelogs_domain": "activity.dev.emmonitor.com",
-            "screencast": ["remote-dev.empmonitor.com"],
-            "service": "service.dev.empmonitor.com",
-            "updates": "https://updates.empmonitor.in/dev/",
-            "updates_domain": "updates.empmonitor.in/dev"
-        }
-    }
-
-    targets = expected_endpoints[env_key]
-    combined_config = f"{config_js_content or ''}\n{ini_content or ''}"
-    has_config = bool(config_js_content and "Not Found" not in config_js_content and "Error" not in config_js_content)
-
-    # 2. Assertions inside config.js / empm.ini for cross-environment leakage
-    if env_key == "live":
-        # Ensure absolutely no dev environment leaks
-        dev_leak_patterns = [
-            ("track.dev.empmonitor.com", "Dev authentication endpoint"),
-            ("activity.dev.emmonitor.com", "Dev activity/storelogs endpoint"),
-            ("remote-dev.empmonitor.com", "Dev screencast socket host"),
-            ("service.dev.empmonitor.com", "Dev service endpoint"),
-            ("updates.empmonitor.in/dev", "Dev auto-update pathway")
-        ]
-        for pattern, desc in dev_leak_patterns:
-            if pattern in combined_config:
-                validation_results["is_valid"] = False
-                validation_results["mismatches"].append(f"CRITICAL LEAK: Dev endpoint detected in Live agent configuration ({pattern} - {desc})!")
-
-        if validation_results["mismatches"]:
-            validation_results["leak_status"] = "LEAK DETECTED"
-            validation_results["leak_summary"] = f"CRITICAL LEAK: {len(validation_results['mismatches'])} Dev reference(s) found in Live configuration"
-        else:
-            validation_results["leak_status"] = "CLEAN"
-            validation_results["leak_summary"] = "No dev references found in live configurations"
-
-    elif env_key == "dev":
-        # Ensure we are pointing to correct dev endpoints and verify no live leaks
-        if has_config:
-            if targets["storelogs_domain"] not in combined_config and targets["storelogs"] not in combined_config:
-                validation_results["is_valid"] = False
-                validation_results["mismatches"].append(f"Expected dev storelogs domain '{targets['storelogs_domain']}' was not found in config.")
-            if targets["auth_domain"] not in combined_config and targets["auth"] not in combined_config:
-                validation_results["is_valid"] = False
-                validation_results["mismatches"].append(f"Expected dev auth domain '{targets['auth_domain']}' was not found in config.")
-
-        # Check if live production endpoint leaked into dev
-        live_leak_patterns = [
-            ("https://track.empmonitor.com", "Live production auth endpoint"),
-            ("realtime.empmonitor.com", "Live production screencast host"),
-            ("service.empmonitor.com", "Live production service endpoint")
-        ]
-        for pattern, desc in live_leak_patterns:
-            if pattern in combined_config and "dev" not in pattern:
-                validation_results["is_valid"] = False
-                validation_results["mismatches"].append(f"CRITICAL LEAK: Live production endpoint detected in Dev agent configuration ({pattern} - {desc})!")
-
-        if validation_results["mismatches"]:
-            validation_results["leak_status"] = "LEAK DETECTED"
-            validation_results["leak_summary"] = f"CRITICAL LEAK: {len(validation_results['mismatches'])} Live reference(s) or missing endpoint(s) detected in Dev configuration"
-        else:
-            validation_results["leak_status"] = "CLEAN"
-            validation_results["leak_summary"] = "No live references found in development configurations"
-
-    # 3. Route summary mapping
-    routes = {
-        "auth": {
-            "name": "Authentication Route",
-            "endpoint": targets["auth"],
-            "status": "VERIFIED" if (has_config and targets["auth_domain"] in combined_config) else ("VERIFIED" if not has_config else "NOT FOUND"),
-            "verified": (targets["auth_domain"] in combined_config) if has_config else True
-        },
-        "storelogs": {
-            "name": "Screenshots Upload Pipeline",
-            "endpoint": targets["storelogs"],
-            "status": "VERIFIED" if (has_config and targets["storelogs_domain"] in combined_config) else ("VERIFIED" if not has_config else "NOT FOUND"),
-            "verified": (targets["storelogs_domain"] in combined_config) if has_config else True
-        },
-        "screencast": {
-            "name": "Active Screencast Host",
-            "endpoint": targets["screencast"][0] if isinstance(targets["screencast"], list) else targets["screencast"],
-            "status": "VERIFIED" if (has_config and any(h in combined_config for h in (targets["screencast"] if isinstance(targets["screencast"], list) else [targets["screencast"]]))) else ("VERIFIED" if not has_config else "NOT FOUND"),
-            "verified": any(h in combined_config for h in (targets["screencast"] if isinstance(targets["screencast"], list) else [targets["screencast"]])) if has_config else True
-        },
-        "service": {
-            "name": "Active Service Endpoint",
-            "endpoint": targets["service"],
-            "status": "VERIFIED" if (has_config and targets["service"] in combined_config) else ("VERIFIED" if not has_config else "NOT FOUND"),
-            "verified": (targets["service"] in combined_config) if has_config else True
-        },
-        "updates": {
-            "name": "Auto-Updates Server",
-            "endpoint": targets["updates"],
-            "status": "VERIFIED" if (has_config and targets["updates_domain"] in combined_config) else ("VERIFIED" if not has_config else "NOT FOUND"),
-            "verified": (targets["updates_domain"] in combined_config) if has_config else True
-        }
-    }
-
-    validation_results["routes"] = routes
-
-    logger.info(f"=== LAYER 3 AUDIT: Telemetry & API Network Routing ({env_key.upper()}) ===")
-    logger.info(f"  Authentication Route:        {targets['auth']} ({routes['auth']['status']})")
-    logger.info(f"  Screenshots Upload Pipeline: {targets['storelogs']} ({routes['storelogs']['status']})")
-    logger.info(f"  Active Screencast Host:      {routes['screencast']['endpoint']} ({routes['screencast']['status']})")
-    logger.info(f"  Active Service Endpoint:     {targets['service']} ({routes['service']['status']})")
-    logger.info(f"  Auto-Updates Server:         {targets['updates']} ({routes['updates']['status']})")
-    logger.info(f"  Cross-Environment Leak Check: [{validation_results['leak_status']}] {validation_results['leak_summary']}")
-
-    return validation_results
-
-
-# ==============================================================================
 # LAYER 4: Playwright Dashboard Validation & Settings Audit
 # ==============================================================================
 def audit_custom_web_dashboard(
@@ -849,7 +697,7 @@ def compile_custom_markdown_report(
       3. Custom Executable Mapping Table
       4. Windows Registry Control Panel Audit Status Table
       5. Host Diagnostics (Processes, Binaries, empm.ini visibility)
-      6. Layer 3 Telemetry & API Network Routing Verification
+      6. Layer 3 Outbound Network & Firewall Audit
       7. Layer 4 Dashboard Verification & Screenshots Evidence Gallery
     """
     logger.info("=== REPORT COMPILATION: reports/custom_regression_report.md ===")
@@ -873,9 +721,14 @@ def compile_custom_markdown_report(
             f"Control Panel Registry Cloaking Failed: {len(registry_breaches)} trace element(s) discovered in uninstallation registry keys."
         )
 
-    if not l3_results.get("is_valid", True):
-        for mismatch in l3_results.get("mismatches", []):
-            discrepancy_reasons.append(f"Network Routing Mismatch: {mismatch}")
+    # Layer 3 failures
+    if l3_results.get("has_tcp_failures"):
+        blocked_endpoints = [k for k, v in l3_results.get("tcp_connectivity", {}).items() if v.get("status") == "BLOCKED"]
+        discrepancy_reasons.append(f"Network Routing Failure: Connection blocked to endpoint(s): {', '.join(blocked_endpoints)}")
+
+    if not l3_results.get("leak_audit", {}).get("is_clean", True):
+        for mismatch in l3_results.get("leak_audit", {}).get("mismatches", []):
+            discrepancy_reasons.append(f"Network Routing Cross-Environment Leak: {mismatch}")
 
     if not user_found:
         discrepancy_reasons.append(
@@ -897,12 +750,8 @@ def compile_custom_markdown_report(
     report_path = REPORTS_DIR / "custom_regression_report.md"
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    routes = l3_results.get("routes", {})
-    auth_route = routes.get("auth", {}).get("endpoint", "N/A")
-    storelogs_route = routes.get("storelogs", {}).get("endpoint", "N/A")
-    screencast_route = routes.get("screencast", {}).get("endpoint", "N/A")
-    service_route = routes.get("service", {}).get("endpoint", "N/A")
-    updates_route = routes.get("updates", {}).get("endpoint", "N/A")
+    leak_status = l3_results.get("leak_audit", {}).get("leak_status", "CLEAN")
+    leak_summary = l3_results.get("leak_audit", {}).get("leak_summary", "No leaks")
 
     md_lines = [
         "# Custom Agent Stealth & Security Regression Report",
@@ -919,7 +768,7 @@ def compile_custom_markdown_report(
         "| :--- | :--- | :--- |",
         f"| **Final Report Verdict** | **`{report_verdict}`** | {'✅ PASS' if report_verdict == 'HEALTHY' else '❌ FAIL'} |",
         f"| **Covert Cloaking Verdict** | **`{cloaking_verdict}`** | {'🛡️ SECURE' if is_stealth_secure else '🚨 BREACHED'} |",
-        f"| **Cross-Environment Leak Check** | `{l3_results.get('leak_status')}` ({l3_results.get('leak_summary')}) | {'🛡️ CLEAN' if l3_results.get('leak_status') == 'CLEAN' else '🚨 LEAK DETECTED'} |",
+        f"| **Cross-Environment Leak Check** | `{leak_status}` ({leak_summary}) | {'🛡️ CLEAN' if leak_status == 'CLEAN' else '🚨 LEAK DETECTED'} |",
         f"| **Dashboard Visibility Setting** | `{dash_vis_mode}` (Expected: {'Stealth' if expected_stealth else 'Visible'}) | {'✅ ALIGNED' if l4_results.get('visibility_mode_match') else '⚠️ MISMATCH'} |",
         f"| **Target Dashboard User** | `{searched_user}` | {'✅ FOUND' if user_found else '❌ NOT FOUND'} |",
         f"| **Host INI Visibility Flag** | `{l1_l2_results.get('visibility_verdict')}` | {'✅ ALIGNED' if 'VERIFIED' in l1_l2_results.get('visibility_verdict', '') else '⚠️ AUDIT'} |",
@@ -1018,15 +867,28 @@ def compile_custom_markdown_report(
         "",
         "---",
         "",
-        "## 5. Layer 3 (L3) - Telemetry & API Routing Audit",
+        "## 5. Layer 3 (L3) - Outbound Network & Firewall Audit",
         "",
-        f"- **Target Environment Status:** `{env_name}`",
-        f"- **Authentication Route:** `{auth_route}` ({'✅ VERIFIED' if routes.get('auth', {}).get('status') == 'VERIFIED' else '⚠️ ' + routes.get('auth', {}).get('status', 'N/A')})",
-        f"- **Screenshots Upload Pipeline:** `{storelogs_route}` ({'✅ VERIFIED' if routes.get('storelogs', {}).get('status') == 'VERIFIED' else '⚠️ ' + routes.get('storelogs', {}).get('status', 'N/A')})",
-        f"- **Active Screencast Host:** `{screencast_route}` ({'✅ VERIFIED' if routes.get('screencast', {}).get('status') == 'VERIFIED' else '⚠️ ' + routes.get('screencast', {}).get('status', 'N/A')})",
-        f"- **Active Service Endpoint:** `{service_route}` ({'✅ VERIFIED' if routes.get('service', {}).get('status') == 'VERIFIED' else '⚠️ ' + routes.get('service', {}).get('status', 'N/A')})",
-        f"- **Auto-Updates Server:** `{updates_route}` ({'✅ VERIFIED' if routes.get('updates', {}).get('status') == 'VERIFIED' else '⚠️ ' + routes.get('updates', {}).get('status', 'N/A')})",
-        f"- **Cross-Environment Leak Check:** `{l3_results.get('leak_status')}` ({l3_results.get('leak_summary')})",
+        f"- **Target Routing Environment:** `{env_name}`",
+        "- **Active Firewall Exceptions:**"
+    ])
+
+    for exe, fw_info in l3_results.get("firewall_status", {}).items():
+        disp = fw_info.get("display_text", "Allowed")
+        md_lines.append(f"  - `{exe}`: `{disp}`")
+
+    md_lines.extend([
+        "- **API Connectivity Matrix:**"
+    ])
+
+    for domain, conn in l3_results.get("tcp_connectivity", {}).items():
+        if conn.get("status") == "HEALTHY":
+            md_lines.append(f"  - `{domain}`: `SUCCESS (Resolved IP: {conn.get('resolved_ip')})`")
+        else:
+            md_lines.append(f"  - `{domain}`: `BLOCKED ({conn.get('error')})`")
+
+    md_lines.extend([
+        f"- **Leak Integrity check:** `{leak_status} ({leak_summary})`",
         "",
         "---",
         "",
@@ -1069,7 +931,7 @@ def compile_custom_markdown_report(
 # ==============================================================================
 def main():
     print("\n" + "=" * 78)
-    print(f"{'CUSTOM AGENT STEALTH, ROUTING & REGISTRY AUDITOR':^78}")
+    print(f"{'CUSTOM AGENT STEALTH, NETWORK & REGISTRY AUDITOR':^78}")
     print(f"{'Branch: custom-agent-regression':^78}")
     print("=" * 78)
 
@@ -1150,12 +1012,17 @@ def main():
         expected_stealth=True
     )
 
-    # Step 3: Layer 3 Telemetry & API Network Routing Audit
-    l3_results = verify_agent_network_routing(
-        environment=env_name,
+    # Step 3: Layer 3 Outbound Network & Windows Defender Firewall Audit
+    network_auditor = NetworkAuditor(environment=env_name, exe_list=custom_names_list)
+    l3_results = network_auditor.run_full_audit(
         config_js_content=l1_l2_results.get("config_js_raw", ""),
         ini_content=l1_l2_results.get("ini_content_raw", "")
     )
+
+    if l3_results.get("has_tcp_failures"):
+        logger.warning("[L3 WARNING] One or more target endpoints failed TCP handshake!")
+    if not l3_results.get("leak_audit", {}).get("is_clean", True):
+        logger.warning(f"[L3 CRITICAL] {l3_results.get('leak_audit', {}).get('leak_summary')}")
 
     # Step 4: Playwright Web Dashboard & User Settings Audit
     l4_results = audit_custom_web_dashboard(
@@ -1181,7 +1048,7 @@ def main():
     print("\n" + "=" * 78)
     print(f"FINAL REPORT VERDICT:    {report_verdict}")
     print(f"COVERT CLOAKING VERDICT: {cloaking_verdict}")
-    print(f"NETWORK ROUTING LEAK:    {l3_results.get('leak_status')}")
+    print(f"NETWORK LEAK INTEGRITY:  {l3_results.get('leak_audit', {}).get('leak_status')}")
     print(f"Report Output Location:  {REPORTS_DIR / 'custom_regression_report.md'}")
     print("=" * 78 + "\n")
 

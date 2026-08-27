@@ -2,52 +2,51 @@
 
 ## 1. Execution Metadata Summary
 
-- **Date & Time**: `2026-08-26 14:01:59`
-- **Agent Version Evaluated**: `3.0.1`
+- **Date & Time**: `2026-08-27 09:36:05`
+- **Target Environment**: `DEV`
+- **Agent Version Evaluated**: `3.5.0`
 - **Local Active Host Email (L1)**: `autotest@gmail.com`
 - **Searched Dashboard User (L4)**: `auto test`
-- **Dashboard Registered Email (L4)**: `autotest@gmail.com`
-- **Screencast Stream Status (L4)**: `OFFLINE / FALLBACK`
-- **Final System Verdict**: **`HEALTHY`**
+- **Dashboard Registered Email (L4)**: `autotest@empmonitor.com`
+- **Cross-Environment Leak Check**: `LEAK DETECTED` (CRITICAL LEAK: 1 invalid environment reference(s) found)
+- **Screencast Stream Status (L4)**: `STANDBY`
+- **Final System Verdict**: **`FAILED`**
+
+### ⚠️ Discrepancy Warnings
+
+- 🔴 **[DISCREPANCY]**: Network Connectivity Blocked: TCP handshake failed for activity.dev.emmonitor.com
+- 🔴 **[DISCREPANCY]**: Network Routing Cross-Environment Leak: CRITICAL LEAK: Live production endpoint detected in Dev agent configuration (service.empmonitor.com - Live production service endpoint)!
+- 🔴 **[DISCREPANCY]**: Email Discrepancy Mismatch! Local Host Email ('autotest@gmail.com') != Dashboard Email ('autotest@empmonitor.com')
 
 ---
 
 ## 2. Layer 1 System Configuration Audit
 
 - **Local INI Path**: `C:\Users\GBSBHL1261\AppData\Roaming\screen\OjUxFCN\empm.ini`
-- **INI File Size**: `4.43 KB` (EV-001 Requirement: > 3.0 KB)
+- **INI File Size**: `4.47 KB` (EV-001 Requirement: > 3.0 KB)
 
 ### Binary Presence & Running Process Status
 
-- **Binary `empmonitor.exe`**: N/A (Legacy < 3.1.0)
-- **Binary `UpdateMgr_Emp.exe`**: N/A (Legacy < 3.1.0)
-- **Binary `esr.exe`**: N/A (Legacy < 3.1.0)
-- **Binary `emp_psa_service.exe`**: N/A (Legacy < 3.1.0)
-- **Process `empmonitor.exe`**: N/A (Legacy < 3.1.0)
-- **Process `updatemgr_emp.exe`**: N/A (Legacy < 3.1.0)
-- **Process `esr.exe`**: N/A (Legacy < 3.1.0)
-- **Process `emp_psa_service.exe`**: N/A (Legacy < 3.1.0)
+- **Binary `empmonitor.exe`**: MISSING
+- **Binary `UpdateMgr_Emp.exe`**: MISSING
+- **Binary `esr.exe`**: MISSING
+- **Binary `emp_psa_service.exe`**: MISSING
+- **Process `empmonitor.exe`**: INACTIVE
+- **Process `updatemgr_emp.exe`**: INACTIVE
+- **Process `esr.exe`**: INACTIVE
+- **Process `emp_psa_service.exe`**: INACTIVE
 
 ### Sanitized `config.js` Contents (Masked)
 ```json
-{
-    "id": "OjUpSmK",
-    "api": "https://storelogs.dev.empmonitor.com/api/v1/",
-    "login": "https://track.empmonitor.com/api/v3/",
-    "pipeline": "https://track.empmonitor.com/api/v3/",
-    "realtime": "wss://realtime.empmonitor.com",
-    "updates": "https://updates.empmonitor.in/",
-    "mode": "personal"
-}
+Not Found
 ```
 
 ### Sanitized `empm.ini` Attributes (Masked)
 ```ini
-last_sync_time = @DateTime(\0\0\0\x10\0\0\0\0\0\0%\x8e_\x3\0\x43\xce\0)
-is_system_locked = false
-currentdate = @Variant(\0\0\0\xe\0%\x8e_)
+last_sync_time = @DateTime(\0\0\0\x10\0\0\0\0\0\0%\x8e`\x2\xe\xbb\xa5\0)
+currentdate = @Variant(\0\0\0\xe\0%\x8e`)
 datasendingperiodsec = 180
-lastsettingsaccessdatetime = @DateTime(\0\0\0\x10\0\0\0\0\0\0%\x8e_\x1\xd3\x7f%\x1)
+lastsettingsaccessdatetime = @DateTime(\0\0\0\x10\0\0\0\0\0\0%\x8e`\0\xe1>\xf9\x1)
 todayremainingbreakinseconds = 1800
 from_remote\aduserinfosendpersec = 21600
 from_remote\screenshotperiodsec = 60
@@ -67,7 +66,7 @@ data\dlpfeatures\bluetoothdetection = 0
 data\dlpfeatures\clipboardblock = 0
 data\dlpfeatures\clipboarddetection = 1
 data\email_monitoring_block_websites = @Variant(\0\0\0\t\0\0\0\x1\0\0\0\n\0\0\0\x1a\0g\0l\0o\0\x62\0u\0s\0s\0o\0\x66\0t\0.\0i\0n)
-data\features\screencast = 0
+data\features\screencast = 1
 data\features\application_usage = 0
 data\features\autocheckout = 0
 data\features\block_websites = 1
@@ -101,8 +100,8 @@ data\manual_clock_in = 0
 data\pack\expiry = 2037-12-31
 data\pack\id = 1
 data\roomid = a8a877faab1ec5ac0f53520f41a544cb:ebbc73a4ba20cd12389171e3b5a291bc
-data\screen_record\audio = 1
-data\screen_record\is_enabled = 1
+data\screen_record\audio = 0
+data\screen_record\is_enabled = 0
 data\screen_record\video_quality = 1
 data\screenshot\frequencyperhour = 60
 data\silahmobilegeolocationfrequency = 30
@@ -115,7 +114,7 @@ data\timesheetidletime = 00:00
 data\tracking\app\appblocklist = @Invalid()
 data\tracking\app\keystrokeblocklist = ****************
 data\tracking\app\keystrokewhitelist = ****************
-data\tracking\domain\appblocklist = esr.exe
+data\tracking\domain\appblocklist = 
 data\tracking\domain\daysandtimes = @Variant(\0\0\0\b\0\0\0\0)
 data\tracking\domain\keystrokeblocklist = **********
 data\tracking\domain\keystrokewhitelist = **********
@@ -126,14 +125,14 @@ data\tracking\domain\suspendmonitorwhencontains = @Invalid()
 data\tracking\domain\suspendmonitorwhenvisited = @Invalid()
 data\tracking\domain\suspendmonitorwhenvisitedincategory = @Invalid()
 data\tracking\domain\suspendprivatebrowsing = false
-data\tracking\domain\websiteblocklist = www.facebook.com, www.ilovepdf.com
+data\tracking\domain\websiteblocklist = @Variant(\0\0\0\t\0\0\0\x1\0\0\0\n\0\0\0 \0w\0w\0w\0.\0\x66\0\x61\0\x63\0\x65\0\x62\0o\0o\0k\0.\0\x63\0o\0m)
 data\tracking\geolocation = @Invalid()
 data\tracking\keystrokepolicymode = *******
 data\tracking\networkbased = @Invalid()
 data\tracking\projectbased = @Invalid()
 data\tracking\unlimited\day = "1,2,3,4,5,6,7"
 data\trackingmode = unlimited
-data\usbdisable = 1
+data\usbdisable = 0
 data\userblock = 0
 data\webcam\frequencyperhour = 1
 error = @Variant(\0\0\0\x94)
@@ -142,247 +141,233 @@ message = User configs
 
 ---
 
-## 3. Layer 2 Host Log Harvest (Last 200 Lines)
+## 3. Layer 3 (L3) - Outbound Network & Firewall Audit
+
+- **Target Routing Environment:** `dev`
+- **Active Firewall Exceptions:**
+  - `empmonitor.exe`: `Allowed (Default Outbound Policy)`
+  - `UpdateMgr_Emp.exe`: `Allowed (Default Outbound Policy)`
+  - `esr.exe`: `Allowed (Default Outbound Policy)`
+  - `emp_psa_service.exe`: `Allowed (Default Outbound Policy)`
+- **API Connectivity Matrix:**
+  - `track.dev.empmonitor.com`: `SUCCESS (Resolved IP: 140.245.4.33)`
+  - `activity.dev.emmonitor.com`: `BLOCKED ([Errno 11001] getaddrinfo failed)`
+  - `remote-dev.empmonitor.com`: `SUCCESS (Resolved IP: 140.245.4.33)`
+  - `service.dev.empmonitor.com`: `SUCCESS (Resolved IP: 140.245.4.33)`
+  - `updates.empmonitor.in`: `SUCCESS (Resolved IP: 129.154.230.99)`
+- **Leak Integrity check:** `LEAK DETECTED (CRITICAL LEAK: 1 invalid environment reference(s) found)`
+
+---
+
+## 4. Layer 2 Host Log Harvest (Last 200 Lines)
 
 ```text
-2026-08-26T07:46:03Z - info: Position Updated
-2026-08-26T07:46:03Z - info: Position Updated at : "Wed Aug 26 2026" , "13:16:03" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T07:46:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:46:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:46:53Z - info: Position Updated
-2026-08-26T07:46:53Z - info: Position Updated at : "Wed Aug 26 2026" , "13:16:53" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T07:47:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:47:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:48:42Z - info: Adding new session data with id  QDateTime(2026-08-26 07:45:42.116 UTC Qt::UTC)
-2026-08-26T07:48:42Z - info: Trying to send new session data
-2026-08-26T07:48:42Z - info: Requesting for add-activity   Reply code : 200  server message : "Data saved"  error message : ""
-2026-08-26T07:48:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:48:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:48:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T07:49:03Z - info: Position Updated
-2026-08-26T07:49:03Z - info: Position Updated at : "Wed Aug 26 2026" , "13:19:03" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T07:49:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:49:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:50:03Z - info: Position Updated
-2026-08-26T07:50:03Z - info: Position Updated at : "Wed Aug 26 2026" , "13:20:03" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T07:50:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:50:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:51:42Z - info: Adding new session data with id  QDateTime(2026-08-26 07:48:42.106 UTC Qt::UTC)
-2026-08-26T07:51:42Z - info: Trying to send new session data
-2026-08-26T07:51:42Z - info: Requesting for add-activity   Reply code : 200  server message : "Data saved"  error message : ""
-2026-08-26T07:51:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:51:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:51:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T07:52:14Z - info: Position Updated
-2026-08-26T07:52:14Z - info: Position Updated at : "Wed Aug 26 2026" , "13:22:14" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T07:52:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:52:44Z - info: Position Updated
-2026-08-26T07:52:44Z - info: Position Updated at : "Wed Aug 26 2026" , "13:22:44" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T07:52:45Z - info: Keyboard layout changed: en-IN
-2026-08-26T07:52:45Z - info: Keyboard layout changed: en-US
-2026-08-26T07:52:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:53:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:53:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:54:42Z - info: Adding new session data with id  QDateTime(2026-08-26 07:51:42.108 UTC Qt::UTC)
-2026-08-26T07:54:42Z - info: Trying to send new session data
-2026-08-26T07:54:42Z - info: Requesting for add-activity   Reply code : 200  server message : "Data saved"  error message : ""
-2026-08-26T07:54:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:54:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:54:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T07:54:59Z - info: Position Updated
-2026-08-26T07:54:59Z - info: Position Updated at : "Wed Aug 26 2026" , "13:24:59" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T07:55:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:55:49Z - info: Position Updated
-2026-08-26T07:55:49Z - info: Position Updated at : "Wed Aug 26 2026" , "13:25:49" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T07:55:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:56:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:56:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:57:42Z - info: Adding new session data with id  QDateTime(2026-08-26 07:54:42.119 UTC Qt::UTC)
-2026-08-26T07:57:42Z - info: Trying to send new session data
-2026-08-26T07:57:42Z - info: Requesting for add-activity   Reply code : 200  server message : "Data saved"  error message : ""
-2026-08-26T07:57:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:57:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:57:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T07:57:59Z - info: Position Updated
-2026-08-26T07:57:59Z - info: Position Updated at : "Wed Aug 26 2026" , "13:27:59" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T07:58:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:58:49Z - info: Position Updated
-2026-08-26T07:58:49Z - info: Position Updated at : "Wed Aug 26 2026" , "13:28:49" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T07:58:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T07:59:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T07:59:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:00:42Z - info: Adding new session data with id  QDateTime(2026-08-26 07:57:42.112 UTC Qt::UTC)
-2026-08-26T08:00:42Z - info: Trying to send new session data
-2026-08-26T08:00:42Z - info: Requesting for add-activity   Reply code : 200  server message : "Data saved"  error message : ""
-2026-08-26T08:00:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T08:00:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:00:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T08:00:59Z - info: Position Updated
-2026-08-26T08:00:59Z - info: Position Updated at : "Wed Aug 26 2026" , "13:30:59" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:01:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T08:01:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:02:09Z - info: Position Updated
-2026-08-26T08:02:09Z - info: Position Updated at : "Wed Aug 26 2026" , "13:32:09" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:02:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T08:02:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:03:42Z - info: Adding new session data with id  QDateTime(2026-08-26 08:00:42.095 UTC Qt::UTC)
-2026-08-26T08:03:42Z - info: Trying to send new session data
-2026-08-26T08:03:42Z - info: Requesting for add-activity   Reply code : 200  server message : "Data saved"  error message : ""
-2026-08-26T08:03:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T08:03:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:03:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T08:04:19Z - info: Position Updated
-2026-08-26T08:04:19Z - info: Position Updated at : "Wed Aug 26 2026" , "13:34:19" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:04:29Z - info: Position Updated
-2026-08-26T08:04:29Z - info: Position Updated at : "Wed Aug 26 2026" , "13:34:29" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:04:42Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T08:04:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:05:41Z - info: System logout event
-2026-08-26T08:05:41Z - critical: Stopping the websocket timers and closing websocket
-2026-08-26T08:05:41Z - critical: WebSocket state changed: QAbstractSocket::ClosingState
-2026-08-26T08:05:41Z - critical: retry timer for websocket is stopped
-2026-08-26T08:05:41Z - critical: WebSocket state changed: QAbstractSocket::UnconnectedState
-2026-08-26T08:05:41Z - info: Adding new session data with id  QDateTime(2026-08-26 08:03:42.149 UTC Qt::UTC)
-2026-08-26T08:05:41Z - info: Trying to send new session data
-2026-08-26T08:05:42Z - info: Requesting for add-activity   Reply code : 200  server message : "Data saved"  error message : ""
-2026-08-26T08:05:42Z - info: Desktop has changed
-2026-08-26T08:05:44Z - info: Changing InputMonitor state RUNNING -> STARTING
-2026-08-26T08:05:44Z - info: Unsetting mouse hook...
-2026-08-26T08:05:44Z - info: Unsetting keyboard hook...
-2026-08-26T08:05:44Z - info: Installing mouse hook...
-2026-08-26T08:05:44Z - info: Installing keyboard hook...
-2026-08-26T08:05:44Z - info: Changing InputMonitor state STARTING -> RUNNING
-2026-08-26T08:05:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:06:42Z - info: Position Updated
-2026-08-26T08:06:42Z - info: Position Updated at : "Wed Aug 26 2026" , "13:36:42" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:06:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:06:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T08:07:33Z - info: Position Updated
-2026-08-26T08:07:33Z - info: Position Updated at : "Wed Aug 26 2026" , "13:37:33" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:07:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:08:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:09:43Z - info: Position Updated
-2026-08-26T08:09:43Z - info: Position Updated at : "Wed Aug 26 2026" , "13:39:43" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:09:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:09:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T08:10:49Z - info: Position Updated
-2026-08-26T08:10:49Z - info: Position Updated at : "Wed Aug 26 2026" , "13:40:49" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:10:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:11:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:12:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:12:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T08:12:59Z - info: Position Updated
-2026-08-26T08:12:59Z - info: Position Updated at : "Wed Aug 26 2026" , "13:42:59" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:13:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:13:59Z - info: Position Updated
-2026-08-26T08:13:59Z - info: Position Updated at : "Wed Aug 26 2026" , "13:43:59" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:14:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:15:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:15:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T08:16:09Z - info: Position Updated
-2026-08-26T08:16:09Z - info: Position Updated at : "Wed Aug 26 2026" , "13:46:09" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:16:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:16:59Z - info: Position Updated
-2026-08-26T08:16:59Z - info: Position Updated at : "Wed Aug 26 2026" , "13:46:59" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:17:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:18:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:18:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T08:19:09Z - info: Position Updated
-2026-08-26T08:19:09Z - info: Position Updated at : "Wed Aug 26 2026" , "13:49:09" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:19:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:19:59Z - info: Position Updated
-2026-08-26T08:19:59Z - info: Position Updated at : "Wed Aug 26 2026" , "13:49:59" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:20:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:21:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:21:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T08:22:09Z - info: Position Updated
-2026-08-26T08:22:09Z - info: Position Updated at : "Wed Aug 26 2026" , "13:52:09" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:22:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  0  server message : "Exceeded the number of allotted requests in a specific time frame"
-2026-08-26T08:22:49Z - critical: failed for URL:  QUrl("https://track.empmonitor.com/api/v3/user/system-info") netErrCode: QNetworkReply::AuthenticationRequiredError ,response: "{\"success\":false,\"error\":\"Exceeded the number of allotted requests in a specific time frame\",\"message\":\"Exceeded the number of allotted requests in a specific time frame\"}" ,netErrStr: "Host requires authentication"
-2026-08-26T08:23:09Z - info: Position Updated
-2026-08-26T08:23:09Z - info: Position Updated at : "Wed Aug 26 2026" , "13:53:09" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:23:50Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  0  server message : "Exceeded the number of allotted requests in a specific time frame"
-2026-08-26T08:23:50Z - critical: failed for URL:  QUrl("https://track.empmonitor.com/api/v3/user/system-info") netErrCode: QNetworkReply::AuthenticationRequiredError ,response: "{\"success\":false,\"error\":\"Exceeded the number of allotted requests in a specific time frame\",\"message\":\"Exceeded the number of allotted requests in a specific time frame\"}" ,netErrStr: "Host requires authentication"
-2026-08-26T08:24:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:24:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T08:25:20Z - info: Position Updated
-2026-08-26T08:25:20Z - info: Position Updated at : "Wed Aug 26 2026" , "13:55:20" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:25:50Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:26:08Z - info: System login event
-2026-08-26T08:26:08Z - critical: ReStarting the websocket timers and websocket connection
-2026-08-26T08:26:08Z - info: Desktop has changed
-2026-08-26T08:26:09Z - info: Changing InputMonitor state RUNNING -> STARTING
-2026-08-26T08:26:09Z - info: Unsetting mouse hook...
-2026-08-26T08:26:09Z - info: Unsetting keyboard hook...
-2026-08-26T08:26:09Z - info: Installing mouse hook...
-2026-08-26T08:26:09Z - info: Installing keyboard hook...
-2026-08-26T08:26:09Z - info: Changing InputMonitor state STARTING -> RUNNING
-2026-08-26T08:26:13Z - critical: Test url realtime  "wss://realtime.empmonitor.com"
-2026-08-26T08:26:13Z - critical: WebSocket state changed: QAbstractSocket::ConnectingState
-2026-08-26T08:26:13Z - critical: retry timer for websocket is stopped
-2026-08-26T08:26:13Z - critical: WebSocket state changed: QAbstractSocket::ConnectedState
-2026-08-26T08:26:13Z - critical: retry timer for websocket is stopped
-2026-08-26T08:26:13Z - critical: connected to server
-2026-08-26T08:26:13Z - critical: Message Received from server :  "Agent authenticated successfully"
-2026-08-26T08:26:13Z - critical: Message Received from server :  "User connected to the dashboard, start sending the activity"
-2026-08-26T08:26:14Z - info: Position Updated
-2026-08-26T08:26:14Z - info: Position Updated at : "Wed Aug 26 2026" , "13:56:14" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:26:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:27:09Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T08:27:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:27:51Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
-2026-08-26T08:28:09Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T08:28:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:29:00Z - info: Keyboard layout changed: en-IN
-2026-08-26T08:29:00Z - info: Keyboard layout changed: en-US
-2026-08-26T08:29:08Z - info: Adding new session data with id  QDateTime(2026-08-26 08:26:08.766 UTC Qt::UTC)
-2026-08-26T08:29:08Z - info: Trying to send new session data
-2026-08-26T08:29:09Z - info: Requesting for add-activity   Reply code : 200  server message : "Data saved"  error message : ""
-2026-08-26T08:29:09Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
-2026-08-26T08:29:14Z - info: Position Updated
-2026-08-26T08:29:14Z - info: Position Updated at : "Wed Aug 26 2026" , "13:59:14" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:29:14Z - info: Position Updated
-2026-08-26T08:29:14Z - info: Position Updated at : "Wed Aug 26 2026" , "13:59:14" , Latitude:  21.2013 ,  Longitude:  81.3239
-2026-08-26T08:29:49Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
-2026-08-26T08:30:09Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+2026-08-27T03:33:54Z - critical: > Driver error: ""
+
+2026-08-27T03:33:54Z - critical: > Native error code: ""
+
+2026-08-27T03:33:54Z - critical: > Error type 0
+
+2026-08-27T03:34:14Z - info: Requesting for url : /auth/authenticate   Reply code : 0  server message : ""  error message : ""
+
+2026-08-27T03:34:14Z - info: Changing tracking mode from " initial " to " "unlimited" "
+2026-08-27T03:34:14Z - info: DB opened
+2026-08-27T03:34:14Z - warning: QObject: Cannot create children for a parent that is in a different thread.
+(Parent is activity_tracker::ui::qt::NetworkAccessManager(0x1ec8a7ffcc0), parent's thread is QThread(0xd721b0f880), current thread is QThread(0x1ec867c7ac0)
+2026-08-27T03:34:14Z - critical: thisApp()->m_isLogoutEnabled in worker  true
+2026-08-27T03:34:14Z - info: Setting the logout btn visility to true
+2026-08-27T03:34:14Z - critical: QJsonArray(["www.facebook.com"])
+2026-08-27T03:34:14Z - info: Exclude website list (data/tracking/domain/excludeWebsiteList): ()
+2026-08-27T03:34:14Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
+2026-08-27T03:34:14Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/me"  Reply code :  200  server message : "Logged in user"
+2026-08-27T03:34:14Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+2026-08-27T03:34:17Z - info: > Installing AppAndBrowser monitor hook...
+
+2026-08-27T03:34:17Z - info: Creating InputMonitorManager
+
+2026-08-27T03:34:17Z - info: Creating InputMonitor
+
+2026-08-27T03:34:17Z - info: Inside thread
+
+2026-08-27T03:34:17Z - info: Entered InputMonitor run thread
+
+2026-08-27T03:34:17Z - info: Dummy window created
+
+2026-08-27T03:34:17Z - info: Keyboard layout changed: en-US
+
+2026-08-27T03:34:17Z - info: Installing mouse hook...
+
+2026-08-27T03:34:17Z - info: Installing keyboard hook...
+
+2026-08-27T03:34:17Z - info: Changing InputMonitor state STARTING -> RUNNING
+
+2026-08-27T03:34:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:35:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+2026-08-27T03:35:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:36:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+2026-08-27T03:36:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:36:48Z - info: Position Updated
+
+2026-08-27T03:36:48Z - info: Position Updated at : "Thu Aug 27 2026" , "09:06:48" , Latitude:  21.2013 ,  Longitude:  81.3239
+
+2026-08-27T03:36:50Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
+
+2026-08-27T03:37:16Z - info: Adding new session data with id  QDateTime(2026-08-27 03:34:16.079 UTC Qt::UTC)
+
+2026-08-27T03:37:16Z - info: Trying to send new session data
+
+2026-08-27T03:37:16Z - info: Requesting for add-activity   Reply code : 200  server message : "Data saved"  error message : ""
+
+2026-08-27T03:37:16Z - info: Memory Usage : 16.4883 MB
+
+2026-08-27T03:37:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+2026-08-27T03:37:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:38:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+2026-08-27T03:38:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:39:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+2026-08-27T03:39:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:39:48Z - info: Position Updated
+
+2026-08-27T03:39:48Z - info: Position Updated at : "Thu Aug 27 2026" , "09:09:48" , Latitude:  21.2013 ,  Longitude:  81.3239
+
+2026-08-27T03:39:48Z - info: Position Updated
+
+2026-08-27T03:39:48Z - info: Position Updated at : "Thu Aug 27 2026" , "09:09:48" , Latitude:  21.2013 ,  Longitude:  81.3239
+
+2026-08-27T03:39:50Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
+
+2026-08-27T03:40:16Z - info: Adding new session data with id  QDateTime(2026-08-27 03:37:16.080 UTC Qt::UTC)
+
+2026-08-27T03:40:16Z - info: Trying to send new session data
+
+2026-08-27T03:40:16Z - info: Requesting for add-activity   Reply code : 200  server message : "Data saved"  error message : ""
+
+2026-08-27T03:40:16Z - info: Memory Usage : 17.3203 MB
+
+2026-08-27T03:40:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+2026-08-27T03:40:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:41:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+2026-08-27T03:41:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:42:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+2026-08-27T03:42:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:42:48Z - info: Position Updated
+
+2026-08-27T03:42:48Z - info: Position Updated at : "Thu Aug 27 2026" , "09:12:48" , Latitude:  21.2013 ,  Longitude:  81.3239
+
+2026-08-27T03:42:48Z - info: Position Updated
+
+2026-08-27T03:42:48Z - info: Position Updated at : "Thu Aug 27 2026" , "09:12:48" , Latitude:  21.2013 ,  Longitude:  81.3239
+
+2026-08-27T03:42:50Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
+
+2026-08-27T03:43:16Z - info: Adding new session data with id  QDateTime(2026-08-27 03:40:16.080 UTC Qt::UTC)
+
+2026-08-27T03:43:16Z - info: Trying to send new session data
+
+2026-08-27T03:43:16Z - info: Requesting for add-activity   Reply code : 200  server message : "Data saved"  error message : ""
+
+2026-08-27T03:43:16Z - info: Memory Usage : 17.2891 MB
+
+2026-08-27T03:43:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+2026-08-27T03:43:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:44:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+2026-08-27T03:44:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:45:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+2026-08-27T03:45:48Z - info: Position Updated
+
+2026-08-27T03:45:48Z - info: Position Updated at : "Thu Aug 27 2026" , "09:15:48" , Latitude:  21.2013 ,  Longitude:  81.3239
+
+2026-08-27T03:45:48Z - info: Position Updated
+
+2026-08-27T03:45:48Z - info: Position Updated at : "Thu Aug 27 2026" , "09:15:48" , Latitude:  21.2013 ,  Longitude:  81.3239
+
+2026-08-27T03:45:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:45:50Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
+
+2026-08-27T03:46:16Z - info: Adding new session data with id  QDateTime(2026-08-27 03:43:16.152 UTC Qt::UTC)
+
+2026-08-27T03:46:16Z - info: Trying to send new session data
+
+2026-08-27T03:46:16Z - info: Requesting for add-activity   Reply code : 200  server message : "Data saved"  error message : ""
+
+2026-08-27T03:46:16Z - info: Memory Usage : 17.2539 MB
+
+2026-08-27T03:46:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+2026-08-27T03:46:48Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info is already the latest"
+
+2026-08-27T03:47:16Z - warning: Could not get the INetworkConnection instance for the adapter GUID.
+
+2026-08-27T03:47:16Z - info: Requesting url :  "https://storelogs.dev.empmonitor.com/api/v1/desktop/upload-screenshots"  Reply code :  0  server message : "Successfully screenshot uploaded"
+
+
+
+!!!!!!!!! Application started at Thu Aug 27 03:47:17 2026 GMT UTC time
+
+2026-08-27T03:47:17Z - info: Changing tracking mode from " initial " to " "unlimited" "
+2026-08-27T03:47:17Z - critical: thisApp()->m_isLogoutEnabled in settings  true
+2026-08-27T03:47:17Z - info: QVariant(QString, "Allow")
+2026-08-27T03:47:17Z - info: QVariant(QString, "Allow")
+2026-08-27T03:47:17Z - info: Shared key "emp_monitor_shared_memory_for_user_GBSBHL1261"
+2026-08-27T03:47:17Z - info: Setting shared key
+2026-08-27T03:47:17Z - info: Assigning registry value
+2026-08-27T03:47:17Z - info: Registering instances
+2026-08-27T03:47:17Z - info: Worker thread instance
+2026-08-27T03:47:17Z - info: Network thread instance
+2026-08-27T03:47:17Z - critical: Trying to get watchdog service
+2026-08-27T03:47:17Z - warning: QWidget::setLayout: Attempting to set QLayout "" on QStackedWidget "", which already has a layout
+2026-08-27T03:47:17Z - info: VERSION:  3.0.1
+2026-08-27T03:47:17Z - info: Setting the logout btn visility to true
+2026-08-27T03:47:18Z - warning: QCssParser::parseHexColor: Unknown color name '#solid'
+2026-08-27T03:47:18Z - warning: Could not parse application stylesheet
+2026-08-27T03:47:17Z - info: Setting network thread
+2026-08-27T03:47:17Z - info: Setting worker thread
+2026-08-27T03:47:17Z - warning: serialnmea: No known GPS device found. Specify the COM port via QT_NMEA_SERIAL_PORT.
+2026-08-27T03:47:17Z - info: DB opened
+2026-08-27T03:47:17Z - info: Last application was not closed properly and last clock data staretd at  QDateTime(2026-08-27 03:34:16.076 UTC Qt::UTC)  is not closed properly.
+2026-08-27T03:47:17Z - info: Find the time of prevous app shutdown.  QDateTime(2026-08-27 03:47:16.049 UTC Qt::UTC)
+2026-08-27T03:47:17Z - info: recovering not closed clock data  QDateTime(2026-08-27 03:34:16.076 UTC Qt::UTC)  from previous app
+2026-08-27T03:47:17Z - info: Position Updated
+2026-08-27T03:47:17Z - info: Position Updated at : "Thu Aug 27 2026" , "09:17:17" , Latitude:  21.2013 ,  Longitude:  81.3239
+2026-08-27T03:47:17Z - warning: Could not get the INetworkConnection instance for the adapter GUID.
+2026-08-27T03:47:17Z - warning: Could not get the INetworkConnection instance for the adapter GUID.
+2026-08-27T03:47:17Z - critical: thisApp()->m_isLogoutEnabled in worker  true
+2026-08-27T03:47:17Z - critical: QJsonArray(["www.facebook.com"])
+2026-08-27T03:47:17Z - info: Exclude website list (data/tracking/domain/excludeWebsiteList): ()
+2026-08-27T03:47:17Z - info: timerForStorageDevice started
+2026-08-27T03:47:17Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/config"  Reply code :  200  server message : "User configs"
+2026-08-27T03:47:17Z - info: Requesting url :  "https://track.empmonitor.com/api/v3/user/system-info"  Reply code :  200  server message : "User system info"
+2026-08-27T03:47:18Z - warning: Could not get the INetworkConnection instance for the adapter GUID.
+2026-08-27T03:47:18Z - critical: Skipping the non-removable device:  "C:/"
 ```
 
 ---
 
-## 4. Layer 4 Visual Evidence Artifacts
+## 5. Layer 4 Visual Evidence Artifacts
 
 ### Evidence: `01_employee_grid_match.png`
 ![01_employee_grid_match.png](evidence/01_employee_grid_match.png)
 Link: [01_employee_grid_match.png](evidence/01_employee_grid_match.png)
-
-### Evidence: `02_employee_edit_modal.png`
-![02_employee_edit_modal.png](evidence/02_employee_edit_modal.png)
-Link: [02_employee_edit_modal.png](evidence/02_employee_edit_modal.png)
-
-### Evidence: `03_timesheets_module.png`
-![03_timesheets_module.png](evidence/03_timesheets_module.png)
-Link: [03_timesheets_module.png](evidence/03_timesheets_module.png)
-
-### Evidence: `04_keystrokes_module.png`
-![04_keystrokes_module.png](evidence/04_keystrokes_module.png)
-Link: [04_keystrokes_module.png](evidence/04_keystrokes_module.png)
-
-### Evidence: `05_app_history_module.png`
-![05_app_history_module.png](evidence/05_app_history_module.png)
-Link: [05_app_history_module.png](evidence/05_app_history_module.png)
-
-### Evidence: `06_web_history_module.png`
-![06_web_history_module.png](evidence/06_web_history_module.png)
-Link: [06_web_history_module.png](evidence/06_web_history_module.png)
-
-### Evidence: `07_screenshots_module.png`
-![07_screenshots_module.png](evidence/07_screenshots_module.png)
-Link: [07_screenshots_module.png](evidence/07_screenshots_module.png)
-
-### Evidence: `08_productivity_module.png`
-![08_productivity_module.png](evidence/08_productivity_module.png)
-Link: [08_productivity_module.png](evidence/08_productivity_module.png)
-
-### Evidence: `10_screencast_module.png`
-![10_screencast_module.png](evidence/10_screencast_module.png)
-Link: [10_screencast_module.png](evidence/10_screencast_module.png)
