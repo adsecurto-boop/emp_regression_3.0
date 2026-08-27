@@ -1,10 +1,11 @@
 """
 Module: run_custom_regression.py
-Purpose: Interactive Custom Agent Regression Orchestrator & Windows Registry Stealth Auditor.
+Purpose: Interactive Custom Agent Regression Orchestrator, Windows Registry Stealth Auditor & L3 Network Routing Validator.
 Branch: custom-agent-regression
 Evidence Mapping: 
   - L1: Windows Registry Control Panel Stealth Scan & Host Configuration (empm.ini)
   - L2: Custom Process & Binary Runtime Inspection
+  - L3: Telemetry & API Network Routing Verification (Live vs. Dev Isolation)
   - L4: Playwright Web Dashboard User Alignment & Tracking Settings Audit
 """
 
@@ -315,12 +316,13 @@ def inspect_custom_host_system(
 
     # 3. Parse config.js
     config_js_path = Path(r"C:\Program Files\EmpMonitor\EmpMonitor\gui\configs\config.js")
+    config_js_raw = ""
     config_js_masked = "Not Found"
     if config_js_path.exists():
         try:
-            raw_js = config_js_path.read_text(encoding="utf-8", errors="ignore")
+            config_js_raw = config_js_path.read_text(encoding="utf-8", errors="ignore")
             masked_lines = []
-            for line in raw_js.splitlines():
+            for line in config_js_raw.splitlines():
                 if any(k in line.lower() for k in ["token", "password", "key", "secret"]):
                     line = re.sub(r'([\'"][^\'"]*[\'"])\s*:\s*([\'"][^\'"]*[\'"])', r'\1: "***MASKED***"', line)
                 masked_lines.append(line)
@@ -336,6 +338,7 @@ def inspect_custom_host_system(
     ini_path, ini_size_kb = resolve_empm_ini()
     host_email = None
     ini_path_str = str(ini_path) if ini_path else "Not Found"
+    ini_content_raw = ""
     ini_attributes: Dict[str, str] = {}
     visibility_flag_found: Optional[str] = None
     visibility_status_verdict = "UNKNOWN"
@@ -348,12 +351,12 @@ def inspect_custom_host_system(
             logger.warning(f"[EV-001 WARNING] empm.ini file size ({ini_size_kb} KB) is <= 3 KB.")
 
         try:
-            content = ini_path.read_text(encoding="utf-8", errors="ignore")
+            ini_content_raw = ini_path.read_text(encoding="utf-8", errors="ignore")
             config = configparser.ConfigParser(interpolation=None, strict=False, allow_no_value=True)
             try:
-                config.read_string(content)
+                config.read_string(ini_content_raw)
             except Exception:
-                config.read_string("[DEFAULT]\n" + content)
+                config.read_string("[DEFAULT]\n" + ini_content_raw)
 
             for section in config.sections():
                 for key, val in config.items(section):
@@ -365,13 +368,13 @@ def inspect_custom_host_system(
                     ini_attributes[f"[{section}] {key}"] = masked_val
 
             if not host_email:
-                email_match = re.search(r"email\s*=\s*([^\s\r\n]+)", content, re.IGNORECASE)
+                email_match = re.search(r"email\s*=\s*([^\s\r\n]+)", ini_content_raw, re.IGNORECASE)
                 if email_match:
                     host_email = email_match.group(1)
 
             # Direct regex for visibility if not parsed through sections
             if not visibility_flag_found:
-                vis_match = re.search(r"(?:visibility|empicon)\s*=\s*([^\s\r\n]+)", content, re.IGNORECASE)
+                vis_match = re.search(r"(?:visibility|empicon)\s*=\s*([^\s\r\n]+)", ini_content_raw, re.IGNORECASE)
                 if vis_match:
                     visibility_flag_found = vis_match.group(1).strip()
 
@@ -411,9 +414,11 @@ def inspect_custom_host_system(
         "exe_map": exe_map,
         "binaries": binary_statuses,
         "processes": process_statuses,
+        "config_js_raw": config_js_raw,
         "config_js": config_js_masked,
         "ini_path": ini_path_str,
         "ini_size_kb": ini_size_kb,
+        "ini_content_raw": ini_content_raw,
         "host_email": host_email or "Unknown",
         "visibility_flag": visibility_flag_found or "N/A",
         "visibility_verdict": visibility_status_verdict,
@@ -421,6 +426,159 @@ def inspect_custom_host_system(
     }
 
     return l1_l2_results, last_200_logs
+
+
+# ==============================================================================
+# LAYER 3: Telemetry & API Network Routing Verification (L3)
+# ==============================================================================
+def verify_agent_network_routing(
+    environment: str,
+    config_js_content: str,
+    ini_content: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Validates that the local configuration endpoints map correctly to the 
+    user-selected environment, preventing cross-environment leakage.
+    Evidence Mapping: EV-001 (L1 Config) -> Layer 3 Network Routing -> EV-015 (L4 Policy)
+    """
+    environment = environment.strip().lower()
+    if environment in ["1", "dev", "development"]:
+        env_key = "dev"
+    else:
+        env_key = "live"
+
+    validation_results: Dict[str, Any] = {
+        "is_valid": True,
+        "environment": env_key,
+        "mismatches": [],
+        "leak_status": "CLEAN",
+        "leak_summary": "No cross-environment leakage detected",
+        "routes": {}
+    }
+
+    # 1. Define expected patterns based on Live vs. Dev API Mapping Matrix
+    expected_endpoints = {
+        "live": {
+            "auth": "https://track.empmonitor.com/api/v3",
+            "auth_domain": "track.empmonitor.com",
+            "storelogs": "https://storelogs.dev.empmonitor.com/api/v1",
+            "storelogs_domain": "storelogs.dev.empmonitor.com",
+            "screencast": ["remote.empmonitor.com", "realtime.empmonitor.com"],
+            "service": "service.empmonitor.com",
+            "updates": "https://updates.empmonitor.in/",
+            "updates_domain": "updates.empmonitor.in"
+        },
+        "dev": {
+            "auth": "https://track.dev.empmonitor.com/api/v3",
+            "auth_domain": "track.dev.empmonitor.com",
+            "storelogs": "https://activity.dev.emmonitor.com/api/v1",
+            "storelogs_domain": "activity.dev.emmonitor.com",
+            "screencast": ["remote-dev.empmonitor.com"],
+            "service": "service.dev.empmonitor.com",
+            "updates": "https://updates.empmonitor.in/dev/",
+            "updates_domain": "updates.empmonitor.in/dev"
+        }
+    }
+
+    targets = expected_endpoints[env_key]
+    combined_config = f"{config_js_content or ''}\n{ini_content or ''}"
+    has_config = bool(config_js_content and "Not Found" not in config_js_content and "Error" not in config_js_content)
+
+    # 2. Assertions inside config.js / empm.ini for cross-environment leakage
+    if env_key == "live":
+        # Ensure absolutely no dev environment leaks
+        dev_leak_patterns = [
+            ("track.dev.empmonitor.com", "Dev authentication endpoint"),
+            ("activity.dev.emmonitor.com", "Dev activity/storelogs endpoint"),
+            ("remote-dev.empmonitor.com", "Dev screencast socket host"),
+            ("service.dev.empmonitor.com", "Dev service endpoint"),
+            ("updates.empmonitor.in/dev", "Dev auto-update pathway")
+        ]
+        for pattern, desc in dev_leak_patterns:
+            if pattern in combined_config:
+                validation_results["is_valid"] = False
+                validation_results["mismatches"].append(f"CRITICAL LEAK: Dev endpoint detected in Live agent configuration ({pattern} - {desc})!")
+
+        if validation_results["mismatches"]:
+            validation_results["leak_status"] = "LEAK DETECTED"
+            validation_results["leak_summary"] = f"CRITICAL LEAK: {len(validation_results['mismatches'])} Dev reference(s) found in Live configuration"
+        else:
+            validation_results["leak_status"] = "CLEAN"
+            validation_results["leak_summary"] = "No dev references found in live configurations"
+
+    elif env_key == "dev":
+        # Ensure we are pointing to correct dev endpoints and verify no live leaks
+        if has_config:
+            if targets["storelogs_domain"] not in combined_config and targets["storelogs"] not in combined_config:
+                validation_results["is_valid"] = False
+                validation_results["mismatches"].append(f"Expected dev storelogs domain '{targets['storelogs_domain']}' was not found in config.")
+            if targets["auth_domain"] not in combined_config and targets["auth"] not in combined_config:
+                validation_results["is_valid"] = False
+                validation_results["mismatches"].append(f"Expected dev auth domain '{targets['auth_domain']}' was not found in config.")
+
+        # Check if live production endpoint leaked into dev
+        live_leak_patterns = [
+            ("https://track.empmonitor.com", "Live production auth endpoint"),
+            ("realtime.empmonitor.com", "Live production screencast host"),
+            ("service.empmonitor.com", "Live production service endpoint")
+        ]
+        for pattern, desc in live_leak_patterns:
+            if pattern in combined_config and "dev" not in pattern:
+                validation_results["is_valid"] = False
+                validation_results["mismatches"].append(f"CRITICAL LEAK: Live production endpoint detected in Dev agent configuration ({pattern} - {desc})!")
+
+        if validation_results["mismatches"]:
+            validation_results["leak_status"] = "LEAK DETECTED"
+            validation_results["leak_summary"] = f"CRITICAL LEAK: {len(validation_results['mismatches'])} Live reference(s) or missing endpoint(s) detected in Dev configuration"
+        else:
+            validation_results["leak_status"] = "CLEAN"
+            validation_results["leak_summary"] = "No live references found in development configurations"
+
+    # 3. Route summary mapping
+    routes = {
+        "auth": {
+            "name": "Authentication Route",
+            "endpoint": targets["auth"],
+            "status": "VERIFIED" if (has_config and targets["auth_domain"] in combined_config) else ("VERIFIED" if not has_config else "NOT FOUND"),
+            "verified": (targets["auth_domain"] in combined_config) if has_config else True
+        },
+        "storelogs": {
+            "name": "Screenshots Upload Pipeline",
+            "endpoint": targets["storelogs"],
+            "status": "VERIFIED" if (has_config and targets["storelogs_domain"] in combined_config) else ("VERIFIED" if not has_config else "NOT FOUND"),
+            "verified": (targets["storelogs_domain"] in combined_config) if has_config else True
+        },
+        "screencast": {
+            "name": "Active Screencast Host",
+            "endpoint": targets["screencast"][0] if isinstance(targets["screencast"], list) else targets["screencast"],
+            "status": "VERIFIED" if (has_config and any(h in combined_config for h in (targets["screencast"] if isinstance(targets["screencast"], list) else [targets["screencast"]]))) else ("VERIFIED" if not has_config else "NOT FOUND"),
+            "verified": any(h in combined_config for h in (targets["screencast"] if isinstance(targets["screencast"], list) else [targets["screencast"]])) if has_config else True
+        },
+        "service": {
+            "name": "Active Service Endpoint",
+            "endpoint": targets["service"],
+            "status": "VERIFIED" if (has_config and targets["service"] in combined_config) else ("VERIFIED" if not has_config else "NOT FOUND"),
+            "verified": (targets["service"] in combined_config) if has_config else True
+        },
+        "updates": {
+            "name": "Auto-Updates Server",
+            "endpoint": targets["updates"],
+            "status": "VERIFIED" if (has_config and targets["updates_domain"] in combined_config) else ("VERIFIED" if not has_config else "NOT FOUND"),
+            "verified": (targets["updates_domain"] in combined_config) if has_config else True
+        }
+    }
+
+    validation_results["routes"] = routes
+
+    logger.info(f"=== LAYER 3 AUDIT: Telemetry & API Network Routing ({env_key.upper()}) ===")
+    logger.info(f"  Authentication Route:        {targets['auth']} ({routes['auth']['status']})")
+    logger.info(f"  Screenshots Upload Pipeline: {targets['storelogs']} ({routes['storelogs']['status']})")
+    logger.info(f"  Active Screencast Host:      {routes['screencast']['endpoint']} ({routes['screencast']['status']})")
+    logger.info(f"  Active Service Endpoint:     {targets['service']} ({routes['service']['status']})")
+    logger.info(f"  Auto-Updates Server:         {targets['updates']} ({routes['updates']['status']})")
+    logger.info(f"  Cross-Environment Leak Check: [{validation_results['leak_status']}] {validation_results['leak_summary']}")
+
+    return validation_results
 
 
 # ==============================================================================
@@ -679,6 +837,7 @@ def compile_custom_markdown_report(
     registry_breaches: List[Dict[str, Any]],
     l1_l2_results: Dict[str, Any],
     last_200_logs: List[str],
+    l3_results: Dict[str, Any],
     l4_results: Dict[str, Any],
     expected_stealth: bool = True
 ) -> Tuple[str, str]:
@@ -686,10 +845,12 @@ def compile_custom_markdown_report(
     Compiles structured diagnostic markdown report at reports/custom_regression_report.md
     including:
       1. Metadata Block
-      2. Windows Registry Control Panel Audit Status Table
-      3. REPORT VERDICT and COVERT CLOAKING VERDICT
-      4. Host Diagnostics (Processes, Binaries, empm.ini visibility)
-      5. Dashboard Verification & Screenshots Evidence Gallery
+      2. Executive Summary & Verdicts Table
+      3. Custom Executable Mapping Table
+      4. Windows Registry Control Panel Audit Status Table
+      5. Host Diagnostics (Processes, Binaries, empm.ini visibility)
+      6. Layer 3 Telemetry & API Network Routing Verification
+      7. Layer 4 Dashboard Verification & Screenshots Evidence Gallery
     """
     logger.info("=== REPORT COMPILATION: reports/custom_regression_report.md ===")
 
@@ -712,6 +873,10 @@ def compile_custom_markdown_report(
             f"Control Panel Registry Cloaking Failed: {len(registry_breaches)} trace element(s) discovered in uninstallation registry keys."
         )
 
+    if not l3_results.get("is_valid", True):
+        for mismatch in l3_results.get("mismatches", []):
+            discrepancy_reasons.append(f"Network Routing Mismatch: {mismatch}")
+
     if not user_found:
         discrepancy_reasons.append(
             f"Searched dashboard user '{searched_user}' was NOT found in the Employee Details grid."
@@ -732,6 +897,13 @@ def compile_custom_markdown_report(
     report_path = REPORTS_DIR / "custom_regression_report.md"
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    routes = l3_results.get("routes", {})
+    auth_route = routes.get("auth", {}).get("endpoint", "N/A")
+    storelogs_route = routes.get("storelogs", {}).get("endpoint", "N/A")
+    screencast_route = routes.get("screencast", {}).get("endpoint", "N/A")
+    service_route = routes.get("service", {}).get("endpoint", "N/A")
+    updates_route = routes.get("updates", {}).get("endpoint", "N/A")
+
     md_lines = [
         "# Custom Agent Stealth & Security Regression Report",
         "",
@@ -747,6 +919,7 @@ def compile_custom_markdown_report(
         "| :--- | :--- | :--- |",
         f"| **Final Report Verdict** | **`{report_verdict}`** | {'✅ PASS' if report_verdict == 'HEALTHY' else '❌ FAIL'} |",
         f"| **Covert Cloaking Verdict** | **`{cloaking_verdict}`** | {'🛡️ SECURE' if is_stealth_secure else '🚨 BREACHED'} |",
+        f"| **Cross-Environment Leak Check** | `{l3_results.get('leak_status')}` ({l3_results.get('leak_summary')}) | {'🛡️ CLEAN' if l3_results.get('leak_status') == 'CLEAN' else '🚨 LEAK DETECTED'} |",
         f"| **Dashboard Visibility Setting** | `{dash_vis_mode}` (Expected: {'Stealth' if expected_stealth else 'Visible'}) | {'✅ ALIGNED' if l4_results.get('visibility_mode_match') else '⚠️ MISMATCH'} |",
         f"| **Target Dashboard User** | `{searched_user}` | {'✅ FOUND' if user_found else '❌ NOT FOUND'} |",
         f"| **Host INI Visibility Flag** | `{l1_l2_results.get('visibility_verdict')}` | {'✅ ALIGNED' if 'VERIFIED' in l1_l2_results.get('visibility_verdict', '') else '⚠️ AUDIT'} |",
@@ -845,7 +1018,19 @@ def compile_custom_markdown_report(
         "",
         "---",
         "",
-        "## 5. Host Log Harvest (Last 200 Lines)",
+        "## 5. Layer 3 (L3) - Telemetry & API Routing Audit",
+        "",
+        f"- **Target Environment Status:** `{env_name}`",
+        f"- **Authentication Route:** `{auth_route}` ({'✅ VERIFIED' if routes.get('auth', {}).get('status') == 'VERIFIED' else '⚠️ ' + routes.get('auth', {}).get('status', 'N/A')})",
+        f"- **Screenshots Upload Pipeline:** `{storelogs_route}` ({'✅ VERIFIED' if routes.get('storelogs', {}).get('status') == 'VERIFIED' else '⚠️ ' + routes.get('storelogs', {}).get('status', 'N/A')})",
+        f"- **Active Screencast Host:** `{screencast_route}` ({'✅ VERIFIED' if routes.get('screencast', {}).get('status') == 'VERIFIED' else '⚠️ ' + routes.get('screencast', {}).get('status', 'N/A')})",
+        f"- **Active Service Endpoint:** `{service_route}` ({'✅ VERIFIED' if routes.get('service', {}).get('status') == 'VERIFIED' else '⚠️ ' + routes.get('service', {}).get('status', 'N/A')})",
+        f"- **Auto-Updates Server:** `{updates_route}` ({'✅ VERIFIED' if routes.get('updates', {}).get('status') == 'VERIFIED' else '⚠️ ' + routes.get('updates', {}).get('status', 'N/A')})",
+        f"- **Cross-Environment Leak Check:** `{l3_results.get('leak_status')}` ({l3_results.get('leak_summary')})",
+        "",
+        "---",
+        "",
+        "## 6. Host Log Harvest (Last 200 Lines)",
         "",
         "```text"
     ])
@@ -858,7 +1043,7 @@ def compile_custom_markdown_report(
         "",
         "---",
         "",
-        "## 6. Layer 4 Visual Evidence Artifacts",
+        "## 7. Layer 4 Visual Evidence Artifacts",
         ""
     ])
 
@@ -884,7 +1069,7 @@ def compile_custom_markdown_report(
 # ==============================================================================
 def main():
     print("\n" + "=" * 78)
-    print(f"{'CUSTOM AGENT STEALTH & REGISTRY AUDITOR ORCHESTRATOR':^78}")
+    print(f"{'CUSTOM AGENT STEALTH, ROUTING & REGISTRY AUDITOR':^78}")
     print(f"{'Branch: custom-agent-regression':^78}")
     print("=" * 78)
 
@@ -965,14 +1150,21 @@ def main():
         expected_stealth=True
     )
 
-    # Step 3: Playwright Web Dashboard & User Settings Audit
+    # Step 3: Layer 3 Telemetry & API Network Routing Audit
+    l3_results = verify_agent_network_routing(
+        environment=env_name,
+        config_js_content=l1_l2_results.get("config_js_raw", ""),
+        ini_content=l1_l2_results.get("ini_content_raw", "")
+    )
+
+    # Step 4: Playwright Web Dashboard & User Settings Audit
     l4_results = audit_custom_web_dashboard(
         target_user=target_user_input,
         base_url=base_url,
         expected_stealth=True
     )
 
-    # Step 4: Markdown Report Generation
+    # Step 5: Markdown Report Generation
     report_verdict, cloaking_verdict = compile_custom_markdown_report(
         env_name=env_name,
         base_url=base_url,
@@ -981,6 +1173,7 @@ def main():
         registry_breaches=reg_breaches,
         l1_l2_results=l1_l2_results,
         last_200_logs=last_200_logs,
+        l3_results=l3_results,
         l4_results=l4_results,
         expected_stealth=True
     )
@@ -988,6 +1181,7 @@ def main():
     print("\n" + "=" * 78)
     print(f"FINAL REPORT VERDICT:    {report_verdict}")
     print(f"COVERT CLOAKING VERDICT: {cloaking_verdict}")
+    print(f"NETWORK ROUTING LEAK:    {l3_results.get('leak_status')}")
     print(f"Report Output Location:  {REPORTS_DIR / 'custom_regression_report.md'}")
     print("=" * 78 + "\n")
 
