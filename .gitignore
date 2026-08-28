@@ -23,6 +23,11 @@ blob-report/
 *.pem
 *.key
 
+# Temporary & Scratch Files
+scratch/
+*.zip
+*.pdf
+
 # IDE & System Files
 .vscode/
 .idea/

@@ -960,20 +960,23 @@ def main():
 
     # 1. Interactive Prompts
     print("\n[STEP 1: Target Environment Selection]")
-    env_choice = input("Select Target Environment [1=dev (default), 2=live]: ").strip().lower()
-    if env_choice in ["2", "live", "prod", "production"]:
-        env_name = "live"
-        base_url = "https://app.empmonitor.com"
-        default_admin_email = "empmonitor@ccfa.org"
-        logger.info(f"Targeting LIVE Production: {base_url} (Admin Email: {default_admin_email})")
+    env_choice = input("Select Target Environment [1=dev (default), 2=silah_live]: ").strip().lower()
+    if env_choice in ["2", "silah", "silah_live", "silah-live", "live", "prod"]:
+        env_name = "silah_live"
+        base_url = "https://tts.silah.com.sa"
+        login_url = "https://tts.silah.com.sa/admin-login"
+        auth_state_path = "playwright-profile/auth_silah_live.json"
+        logger.info(f"Targeting Silah TTS Production: {base_url} ({login_url})")
     else:
         env_name = "dev"
         base_url = "https://app.dev.empmonitor.com"
+        login_url = "https://app.dev.empmonitor.com/amember/member"
+        auth_state_path = "playwright-profile/auth.json"
         logger.info(f"Targeting DEV Environment: {base_url}")
 
     os.environ["EMP_ENV"] = env_name
     os.environ["EMP_BASE_URL"] = base_url
-    os.environ["EMP_LOGIN_URL"] = f"{base_url}/amember/member"
+    os.environ["EMP_LOGIN_URL"] = login_url
 
     # Agent Version
     print("\n[STEP 2: Agent Version]")
@@ -987,8 +990,8 @@ def main():
     if not target_user_input:
         target_user_input = "auto test"
 
-    # Custom Binary Names
-    print("\n[STEP 4: Custom Executable & Process Mapping]")
+    # Custom Binary Names (Defaulted to Silah Custom Agent: DisplayConfigManager.exe)
+    print("\n[STEP 4: Custom Executable & Process Mapping (Silah Defaults)]")
     main_exe = input("Enter Main Agent Executable Name [default 'DisplayConfigManager.exe']: ").strip()
     if not main_exe:
         main_exe = "DisplayConfigManager.exe"
@@ -1017,6 +1020,7 @@ def main():
     print("\n" + "-" * 78)
     logger.info(f"Configuration Summary:")
     logger.info(f"  Environment: {env_name.upper()} ({base_url})")
+    logger.info(f"  Auth Profile: {auth_state_path}")
     logger.info(f"  Version: {version_input}")
     logger.info(f"  Searched User: {target_user_input}")
     logger.info(f"  Main Executable: {main_exe}")
@@ -1051,6 +1055,7 @@ def main():
     l4_results = audit_custom_web_dashboard(
         target_user=target_user_input,
         base_url=base_url,
+        auth_state_path=auth_state_path,
         expected_stealth=True
     )
 

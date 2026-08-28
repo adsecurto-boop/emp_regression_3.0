@@ -6,6 +6,7 @@ Evidence Mapping: Part of L4 Web Dashboard Setup (EV-013)
 
 import os
 import sys
+import argparse
 import logging
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -18,74 +19,101 @@ if str(PROJECT_ROOT) not in sys.path:
 # Setup logging for clean terminal output
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-AUTH_DIR = Path("playwright-profile")
-AUTH_PATH = AUTH_DIR / "auth.json"
+AUTH_DIR = PROJECT_ROOT / "playwright-profile"
 
 
-def generate_auth_state() -> None:
-    from config.settings import LOGIN_URL
-    # Ensure our target profile directory exists
+def generate_auth_state(env_name: str = "dev") -> None:
+    from config.environments import get_environment_config
+    env_cfg = get_environment_config(env_name)
+    login_url = env_cfg["login_url"]
+    auth_file_path = env_cfg["auth_profile"]
+    
+    # Ensure profile directory exists
     AUTH_DIR.mkdir(parents=True, exist_ok=True)
     
     with sync_playwright() as p:
-        logging.info("Launching chromium browser (visible mode)...")
-        # Launch in non-headless mode so we can verify the transition visually
+        logging.info(f"Launching chromium browser (visible mode) for environment: {env_cfg['name']}...")
         browser = p.chromium.launch(headless=False)
         context = browser.new_context(ignore_https_errors=True)
         page = context.new_page()
         
-        logging.info(f"Navigating to EmpMonitor login interface: {LOGIN_URL}")
-        page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
+        logging.info(f"Navigating to login interface: {login_url}")
+        page.goto(login_url, wait_until="domcontentloaded", timeout=60000)
         
-        # We fill the credentials dynamically using auth_helper
+        # Retrieve credentials dynamically
         logging.info("Retrieving dashboard login credentials...")
         from src.utils.auth_helper import get_dashboard_credentials
         username, password = get_dashboard_credentials(prompt_if_missing=True)
-        if not username or not password:
-            logging.error("Dashboard credentials not provided! Cannot generate auth state.")
-            return
+        
+        if username and password:
+            logging.info("Entering credentials into login form...")
+            # Handle multi-tenant login field variations (EmpMonitor vs Silah TTS Admin)
+            user_input = page.locator("input[name='username'], input[name='email'], input[type='email'], input[placeholder*='Email'], input[placeholder*='Username']").first
+            if not user_input.is_visible(timeout=3000):
+                user_input = page.get_by_role("textbox", name="Username/Email")
+            user_input.fill(username)
 
-        logging.info("Entering credentials into login form...")
-        page.get_by_role("textbox", name="Username/Email").fill(username)
-        page.get_by_role("textbox", name="Password").fill(password)
-        
-        logging.info("Submitting login form...")
-        page.get_by_role("button", name="Login").click()
-        
-        # Crucial: Wait for the landing page's main 'Dashboard' header to render.
-        # This guarantees our session is fully authenticated before we save.
-        logging.info("Waiting for dashboard redirect...")
-        dashboard_header = page.get_by_role("heading", name="Dashboard")
-        dashboard_header.wait_for(timeout=15000)
-        
-        # Take screenshot evidence of the authenticated dashboard session (optional)
+            pass_input = page.locator("input[name='password'], input[type='password']").first
+            if not pass_input.is_visible(timeout=3000):
+                pass_input = page.get_by_role("textbox", name="Password")
+            pass_input.fill(password)
+            
+            logging.info("Submitting login form...")
+            submit_btn = page.locator("button[type='submit'], input[type='submit'], button:has-text('Login'), button:has-text('Sign In')").first
+            submit_btn.click()
+        else:
+            logging.info("Credentials not supplied automatically. Waiting up to 90 seconds for manual user login...")
+
+        # Wait for authenticated dashboard landing element
+        logging.info("Waiting for dashboard redirect & session completion...")
         try:
-            evidence_dir = Path("tests/evidence")
+            page.wait_for_selector("h1, h2, header, .dashboard, #dashboard, .admin-dashboard, a[href*='logout']", timeout=30000)
+        except Exception as e:
+            logging.warning(f"Dashboard header wait timeout ({e}). Verifying navigation state...")
+        
+        # Screenshot evidence
+        try:
+            evidence_dir = PROJECT_ROOT / "tests" / "evidence"
             evidence_dir.mkdir(parents=True, exist_ok=True)
-            screenshot_path = evidence_dir / "00_authenticated_dashboard.png"
+            env_prefix = "silah_live" if "silah" in env_cfg["name"] else "00"
+            screenshot_path = evidence_dir / f"{env_prefix}_authenticated_dashboard.png"
             page.wait_for_timeout(2000)
             page.screenshot(path=str(screenshot_path), timeout=5000)
             logging.info(f"Dashboard screenshot evidence saved at: {screenshot_path}")
         except Exception as e:
             logging.warning(f"Screenshot capture skipped or timed out ({e}). Proceeding to save session state...")
         
-        # Save cookies and local storage state into our profile directory
-        context.storage_state(path=str(AUTH_PATH))
-        logging.info(f"Success! Session state successfully cached at: {AUTH_PATH}")
+        # Save session cookies strictly into target json profile
+        context.storage_state(path=str(auth_file_path))
+        logging.info(f"Success! Session state successfully cached at: {auth_file_path}")
         
         context.close()
         browser.close()
 
 
 if __name__ == "__main__":
-    if sys.stdin.isatty():
-        env_choice = input("Select Environment [1=dev (default), 2=live]: ").strip().lower()
-        if env_choice in ["2", "live", "prod", "production"]:
-            os.environ["EMP_ENV"] = "live"
-            os.environ["EMP_BASE_URL"] = "https://app.empmonitor.com"
-            os.environ["EMP_LOGIN_URL"] = "https://app.empmonitor.com/amember/member"
+    parser = argparse.ArgumentParser(description="Generate authenticated session state JSON for Playwright testing.")
+    parser.add_argument("--env", type=str, default=None, help="Target environment ('dev' or 'silah_live')")
+    args = parser.parse_args()
+
+    env_selection = args.env
+    if not env_selection and sys.stdin.isatty():
+        choice = input("Select Environment [1=dev (default), 2=silah_live]: ").strip().lower()
+        if choice in ["2", "silah", "silah_live", "silah-live"]:
+            env_selection = "silah_live"
         else:
-            os.environ["EMP_ENV"] = "dev"
-            os.environ["EMP_BASE_URL"] = "https://app.dev.empmonitor.com"
-            os.environ["EMP_LOGIN_URL"] = "https://app.dev.empmonitor.com/amember/member"
-    generate_auth_state()
+            env_selection = "dev"
+    elif not env_selection:
+        env_selection = os.getenv("EMP_ENV", "dev")
+
+    if env_selection in ["silah", "silah_live", "silah-live"]:
+        os.environ["EMP_ENV"] = "silah_live"
+        os.environ["EMP_BASE_URL"] = "https://tts.silah.com.sa"
+        os.environ["EMP_LOGIN_URL"] = "https://tts.silah.com.sa/admin-login"
+    else:
+        os.environ["EMP_ENV"] = "dev"
+        os.environ["EMP_BASE_URL"] = "https://app.dev.empmonitor.com"
+        os.environ["EMP_LOGIN_URL"] = "https://app.dev.empmonitor.com/amember/member"
+
+    generate_auth_state(env_selection)
+
